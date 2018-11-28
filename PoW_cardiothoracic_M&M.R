@@ -5,21 +5,112 @@
 #Load Libraries ------------------------
 library(officer)
 library(magrittr)
-library(tidyr)
-library(ggplot2)
+library(tidyverse)
+library(flextable)
+library(janitor)
 
+#Load Data -----------------------------
+
+#####
+#change this file accordingly >>>>D:/M&M_Query_Data/ "insert pathfile here"
+PathFile <- "M&M_Query_Data"
+#####
+
+#change to use readr package - require downloading the package first
+MM.CaseStudy <- read_csv(file = file.path("D:", PathFile, "qry_M&M_CaseStudy.csv"))
+MM.Inf <-       read_csv(file = file.path("D:", PathFile, "qry_MMPres_Inf.csv"))
+MM.Pres_Main <- read_csv(file = file.path("D:", PathFile, "qry_MMPres_Main.csv"))
+MM.ReAdm <-     read_csv(file = file.path("D:", PathFile, "qry_MMPres_ReAdm.csv"))
+MM.RTT <-       read_csv(file = file.path("D:", PathFile, "qry_MMPres_RTT.csv"))
+
+#Data cleaning and wrangling ------------
+
+#####CaseStudy Dataset#####
+
+str(MM.CaseStudy)
+#Fix Variable formats
+MM.CaseStudy$OpDate <- as.Date(MM.CaseStudy$OpDate, "%d/%m/%Y")
+
+#####Pres_Main Dataset#####
+
+str(MM.Pres_Main)
+MM.Pres_Main$OpDate <- as.Date(MM.Pres_Main$OpDate, "%d/%m/%Y")
+#create date number variable
+MM.Pres_Main$Num_Months <- month(MM.Pres_Main$OpDate) - month(min(MM.Pres_Main$OpDate)) + 1
+
+
+
+
+
+# Determine how many dates selected -----
+First.Month <- min(MM.Pres_Main$Num_Months)
+Second.Month <- max(MM.Pres_Main$Num_Months)
+No.Months <- Second.Month - First.Month + 1
+
+First.Month <- format(min(OpDate), "%B")
+Second.Month <- format(max(OpDate), "%B")
 
 #Presentation setup ---------------------------------------------------
 
-# Text for Slides ----------------------
+# Tables for slides ---------------------
+
+# Slide1
+
+if(No.Months == 1) {                    #order needs fixing using factor levels taken from database 
+    slide1.data <- MM.CaseStudy %>% 
+    group_by(OpDescription) %>%
+    summarise(Count = n())
+    
+    slide1.tbl <- flextable(data = slide1.data) %>%
+      theme_booktabs() %>%
+      set_header_labels( )
+    
+} else if(No.Months == 2) {
+  slide1.data <- MM.CaseStudy %>%
+    group_by(OpDescription, "Month" = format(OpDate, "%B")) %>%
+    summarise(Count = n()) %>%
+    spread(Month, Count) %>%
+    adorn_totals("row")
+  
+  #create percentages for month1
+  totalcount <- slide1.data[[length(slide1.data$OpDescription), 2]]
+  slide1.data$Percentage <- slide1.data[[2]] / totalcount
+  slide1.data$Percentage <- percent(slide1.data$Percentage)
+  
+  #create percentages for month2
+  totalcount <- slide1.data[[length(slide1.data$OpDescription), 3]]
+  slide1.data$Percentage2 <- slide1.data[[3]] / totalcount
+  slide1.data$Percentage2 <- percent(slide1.data$Percentage2)
+  
+  #reorder columns
+  slide1.data <- slide1.data[,c(1, 2, 4, 3, 5)]
+  names(slide1.data) <- c('OP Description', First.Month, paste(First.Month, " Percentage"), Second.Month, paste(Second.Month, " Percentage"))
+  
+  slide1.tbl <- flextable(data = slide1.data) %>%
+    theme_booktabs() %>%
+    set_header_labels( )
+}
+
+
+# Graphs for Slides ---------------------
+
+#
+
+
+
+
+
+# Text for Slides -----------------------
 
 # Intro summary slide
-intro<-"Earlier this year we talked about how limited housing supply was helping to drive accelerating house prices across the country. In such an environment you would expect to see housing vacancies decline. Indeed, if you look at the rate of rental or homeowner vacancies you see a substantial reduction. But if we look a little closer at the housing inventory data something curious emerges."
+intro <- "Earlier this year we talked about how limited housing supply was helping to drive accelerating house prices across the country. In such an environment you would expect to see housing vacancies decline. Indeed, if you look at the rate of rental or homeowner vacancies you see a substantial reduction. But if we look a little closer at the housing inventory data something curious emerges."
 
-# Set captions -------------------------
+# Set captions --------------------------
 
 #Date caption for title
-title.date<-paste(month1, " and ", month2, year)
+
+title.date<-paste(, " and ", month2, year)
+
 
 cap1<-"During the Great Recession homeowner vacancy rates spiked, and gradually came back down. Rental vacancy rates did not spike nearly as much, but also came down in recent years as housing markets have gotten pretty tight."
 cap2<-"The top two panels show the vacant for rent vacant for sale units that make up the rental and homeowner vacancy rates. The bottom right panel shows year-round vacant units which have been rented or sold but the new renters or owners have not moved in yet. That has a pretty clear seasonal pattern, matching the rhythm of the U.S. housing market, but remains constant at a little under one percent. The bottom left panel shows the share of housing units that are vacant and held off the market."
@@ -29,7 +120,7 @@ cap5<-"The share vacant due to foreclosure has declined quite a lot since 2012 w
 myftr<-"RoryDenham R to PowerPoint"
 
 
-# Build the Deck -----------------------
+# Build the Deck ------------------------
 
 read_pptx("Powerpoint_Templates/blank.pptx") %>%
   # Title Slide
@@ -40,15 +131,16 @@ read_pptx("Powerpoint_Templates/blank.pptx") %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   # Summary Slide:
   add_slide(layout = "Title and Content", master = "Office Theme") %>% 
-  ph_with_text(type = "title", index=1,str = "Summary") %>%
+  ph_with_text(type = "title", index=1,str = "Caseload") %>%
+  pl_with_table(type = "body", value = slide2.tbl)
   ph_with_text(type="body",str = intro ) %>% 
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "1" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
   # Slide with Chart 1:
-  add_slide(layout = "Content with Caption", master = "Office Theme") %>%
+  add_slide(layout = "Title and Content", master = "Office Theme") %>%
   ph_with_text(type = "body", index=2,str = cap1) %>% 
-  ph_with_img(type = "body", index = 1, src = "img/chart1.png") %>%
+  ph_with_table(type = "body", index = 1, src = "img/chart1.png") %>%
   ph_with_text(type = "title", index=1,str = "Homeowner and rental vacancy rates have declined") %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "2" ) %>%
