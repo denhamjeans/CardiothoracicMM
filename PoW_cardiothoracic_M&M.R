@@ -10,7 +10,7 @@ library(flextable)
 library(janitor)
 library(lubridate)
 library(scales)
-library(stingr)
+library(stringr)
 
 #Load Data -----------------------------
 
@@ -45,7 +45,8 @@ MM.Pres_Main$PO_ICUAdmDt <- as.Date(MM.Pres_Main$PO_ICUAdmDt, "%d/%m/%Y")
 MM.Pres_Main$PO_ExtbDt <- as.Date(MM.Pres_Main$PO_ExtbDt, "%d/%m/%Y")
 #create date number variable
 MM.Pres_Main$Num_Months <- month(MM.Pres_Main$OpDate) - month(min(MM.Pres_Main$OpDate)) + 1
-#rename ventilation variable
+#add month variable
+MM.Pres_Main %<>% mutate(Month = format(OpDate, "%B"))
 
 
 
@@ -54,59 +55,53 @@ First.Month <- min(MM.Pres_Main$Num_Months)
 Second.Month <- max(MM.Pres_Main$Num_Months)
 No.Months <- Second.Month - First.Month + 1
 
-First.Month <- format(min(OpDate), "%B")
-Second.Month <- format(max(OpDate), "%B")
+First.Month <- format(min(MM.Pres_Main$OpDate), "%B")
+Second.Month <- format(max(MM.Pres_Main$OpDate), "%B")
+
+#number of cases ------------------------
+Total.Cases <- MM.Pres_Main %>%
+  group_by(Month) %>%
+  summarise(n = n())
+
 
 #Presentation setup ---------------------------------------------------
 
 
 # Tables and Graphs for slides ---------------------
 
-# Slide 1
+# Slide 1 ------------------------------------------
+#caseload by category
 
-if(No.Months == 1) {                    
+if(No.Months == 1) {                              #if one month is present within M&M dataset create counts for each surgery type
   slide1.data <- MM.Pres_Main %>% 
-    group_by(OpCategory) %>%
-    summarise(Count = n()) %>%
-    arrange(desc(Count)) %>%
-    adorn_totals("row")
-  
-  #create percentages for month1
-  totalcount <- slide1.data[[length(slide1.data$OpCategory), 2]]
-  slide1.data$Percentage <- slide1.data[[2]] / totalcount
-  slide1.data$Percentage <- percent(slide1.data$Percentage)
-  
-  i <- 1
-  for (i in seq_along(unique(slide1.data$OpCategory))) {
-    x <- MM.Pres_Main %>%
-      select(OpCategory, OpDescription) %>%
-      filter(OpCategory == Unique.Category[i])
-    slide1.data[i, "Description"] <- paste(unique(x$OpDescription), collapse = ", ")
-  i <- i + 1
-  }
-  
-} else if(No.Months == 2) {
-  slide1.data <- MM.Pres_Main %>% 
-    group_by(OpCategory, "Month" = format(OpDate, "%B")) %>%
+    group_by(OpCategory, Month) %>%
     summarise(Count = n()) %>%
     arrange(desc(Count)) %>%
     spread(Month, Count) %>%
-    adorn_totals("row")
+    adorn_totals("row") %>%                         #add totals to the bottom of the count summary to give total cases per month
+    mutate("Percentage" = percent(.[[2]] / Total.Cases[[1, 'n']])) #add percentages for each surgery category as a proportion of the total cases (1 month)
   
-  #create percentages for month1
-  totalcount <- slide1.data[[length(slide1.data$OpCategory), 2]]
-  slide1.data$Percentage <- slide1.data[[2]] / totalcount
-  slide1.data$Percentage <- percent(slide1.data$Percentage)
+  for (i in seq_along(unique(slide1.data$OpCategory))) {        #loop is used to create a list of operations within each category which are present this month
+    x <- MM.Pres_Main %>%                                 #if major OPcategories were not used to create the table in this fashion the table would be too large
+      select(OpCategory, OpDescription) %>%
+      filter(OpCategory == Unique.Category[i])
+    slide1.data[i, "Description"] <- paste(unique(x$OpDescription), collapse = ", ")
+  }
   
-  #create percentages for month2
-  totalcount <- slide1.data[[length(slide1.data$OpCategory), 3]]
-  slide1.data$Percentage2 <- slide1.data[[3]] / totalcount
-  slide1.data$Percentage2 <- percent(slide1.data$Percentage2)
+} else if(No.Months == 2) {                       #if one month is present within M&M dataset create counts for each surgery type
+  slide1.data <- MM.Pres_Main %>% 
+    group_by(OpCategory, Month) %>%
+    summarise(Count = n()) %>%
+    arrange(desc(Count)) %>%
+    spread(Month, Count) %>%
+    adorn_totals("row") %>%                       #add totals to the bottom of the count summary to give total cases per month
+    mutate("Percentage" = percent(.[[2]] / Total.Cases[[1, 'n']]),  #add percentages for each surgery category as a proportion of the total cases (2 months)
+           "Percentage2" = percent(.[[3]] / Total.Cases[[2, 'n']]))
   
-  
+
   Unique.Category <- unique(slide1.data$OpCategory)
-  for (e in 1:2) {
-    for (i in seq_along(Unique.Category)) {
+  for (e in 1:2) {                                  #loop is used to create a list of operations within each category which are present this month
+    for (i in seq_along(Unique.Category)) {       #if major OPcategories were not used to create the table in this fashion the table would be too large
       x <- MM.Pres_Main %>%
         select(OpCategory, OpDescription, Num_Months) %>%
         filter(OpCategory == Unique.Category[i] & Num_Months == e)
@@ -117,13 +112,122 @@ if(No.Months == 1) {
   slide1.data <- slide1.data[c(1, 2, 4, 6, 3, 5, 7)]
 }
 
+
+
+# Slide 2 ------------------------------------------
+#Caseload historical comparison
+slide2.data <- MM.Pres_Main %>%
+  group_by(Num_Months) %>%
+  summarise(avg = mean(Op_Age), median(Op_Age))
+
+
+
+# Slide 3 ------------------------------------------
+#Caseload by consultant
+
+slide3.data <- MM.Pres_Main %>%                #count operation categories by consultant
+  select(OpConsultant, OpCategory) %>%
+  group_by(OpConsultant, OpCategory) %>%
+  summarise(count = n()) %>%
+  spread(OpCategory, count) 
+
+fncols <- function(data, cname) {       #function adds op category full of NA if it is missing to create a fixed number of columns 
+  add <-cname[!cname%in%names(data)]
+  
+  if(length(add)!=0) data[add] <- NA
+  data
+}
+slide3.data <- fncols(slide3.data, c("OpConsultant", "CABG","CABG/Other","CABG/Valve", "CABG/Valve/Other", "Other", "Valve", "Valve/Other")) #run function to add missing cols
+
+slide3.data <- slide3.data[, c("OpConsultant", "CABG","CABG/Other", "Valve", "Valve/Other", "CABG/Valve", "CABG/Valve/Other", "Other")]
+
+slide3.data <- cbind(slide3.data, TOTAL = rowSums(slide3.data[2:length(slide3.data)], na.rm = TRUE))        #add totals
+
+
+
+# slide 4 ------------------------------------------
+#Mortalities <30days
+
+slide4.data1 <- MM.Pres_Main %>% 
+  group_by(Month) %>%
+  summarise(Mortalities = sum(FU_Death30d, na.rm = TRUE)) %>%
+  mutate("Percentage" = percent(.[[2]] / Total.Cases[['n']])) 
+
+slide4.data2 <- MM.Pres_Main %>%
+  group_by(Month) %>%
+  filter(FU_Death30d == 1) %>%
+  select(Pt_LName, OpConsultantInitials, Month, Op_Age, Op_StatusPOW, EUROScoreLogistic, Death_DaysPO, FU_DeathCause1, FU_DeathNotes)
+
+if (dim(slide4.data2)[1] == 0) {
+  slide4.data2[1,] <- NA
+}
+
+
+
+# slide 5 ------------------------------------------
+#Outpatient Wait day plot + mean/medians talbe
+
+slide5.data <- MM.Pres_Main %>%
+  filter(Adm_Elective == 1) %>%
+  group_by(Month) %>%
+  mutate(waitdays = OpDate - ConsultDate) %>%
+  select(Month, waitdays) %>%
+  summarise(Mean = round(mean(waitdays, na.rm = TRUE), 1), Median = median(waitdays, na.rm = TRUE)) %>%
+  rbind(c("Historical", 67.7, 68))
+  
+slide5.plotdata <- MM.Pres_Main %>%
+  
+
+
+
+slide5.plot
+
+# slide 6 ------------------------------------------
+#Outpatient Wait >100 day Patients
+
+
+# slide 7 ------------------------------------------
+#Inpatient Wait day plot + mean/medians table
+
+slide7.data <- MM.Pres_Main %>%
+  filter(Adm_Elective == 0) %>%
+  group_by(Month) %>%
+  mutate(waitdays = OpDate - ConsultDate) %>%
+  select(Month, waitdays) %>%
+  summarise(Mean = round(mean(waitdays, na.rm = TRUE), 1), Median = median(waitdays, na.rm = TRUE)) %>%
+  rbind(c("Historical", 5.8, 4))
+
+###Variable setup for graphing
+#Historical Data has been added to previous summary table
+Hlinedata <- data.frame(x = c(-Inf, Inf), y = slide7.data[[dim(slide7.data)[1], 2]])
+#highlight max values for each of the waiting periods
+max_wait <- MM.Pres_Main %>%
+  group_by(OpConsultant) %>%
+  mutate(waitdays = OpDate - ConsultDate) %>%
+  summarise(Max_wait = max(waitdays))
+
+plot <- ggplot(maindata[maindata$Adm_Elective==1], aes(Pt_LName, waitdays)) + 
+  geom_col() +
+  facet_wrap(~OpConsultant, scales = "free_y") +
+  coord_flip() + #flip the axes for readability
+  geom_hline(aes(yintercept=historicaldata["Outpatient Wait Days"]), colour="red")
+
+plot <- plot + labs(x = "", y = "Wait Period (Days)", title = "Outpatient Wait Days", caption = "*Values calculated from initial consult date") +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.position = "bottom") +
+  coord_flip()
+
+
 ########################################################################################
 
 #sample code for MnMs
 
 ####Age
 MM.Pres_Main %>%
-  group_by(Num_Months\) %>%
+  group_by(Num_Months) %>%
   summarise(avg = mean(Op_Age), median(Op_Age))
 
 ####Caseload by consultant
@@ -275,7 +379,7 @@ if(No.Months == 1){
   captitle <- paste(First.Month, " and ", Second.Month, " 2018")
 }
 
-
+#Example captions and footer for the presentations
 cap1<-"During the Great Recession homeowner vacancy rates spiked, and gradually came back down. Rental vacancy rates did not spike nearly as much, but also came down in recent years as housing markets have gotten pretty tight."
 cap2<-"The top two panels show the vacant for rent vacant for sale units that make up the rental and homeowner vacancy rates. The bottom right panel shows year-round vacant units which have been rented or sold but the new renters or owners have not moved in yet. That has a pretty clear seasonal pattern, matching the rhythm of the U.S. housing market, but remains constant at a little under one percent. The bottom left panel shows the share of housing units that are vacant and held off the market."
 cap3<-"The year-round vacant other category has increased almost a full percentage point since 2005. Just to be clear, that's a lot of housing units. A one percentage point increase corresponds to over one million housing units. The largest component, taking up about a quarter are those units vacant due to personal/family reasons. This includes situations where the owner is in assisted living and not occupying the unit."
@@ -314,22 +418,20 @@ doc <- read_pptx("Powerpoint_Templates/blank.pptx") %>%
   ph_with_text(type = "sldNum", str = "1" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
     
-  # Slide with Chart 1:
-  add_slide(layout = "Title and Content", master = "Office Theme") %>%
-  ph_with_text(type = "body", index=2,str = cap1) %>% 
-  ph_with_table(type = "body", index = 1, src = "img/chart1.png") %>%
-  ph_with_text(type = "title", index=1,str = "Homeowner and rental vacancy rates have declined") %>%
+  # Slide 2 - Caseload historical comparison:
+  add_slide(layout = "Content Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "body", index=1,str = "Caseload Historical Comparison") %>% 
+  ph_with_table(type = "body", value = slide2.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "2" ) %>%
+  ph_with_text(type = "sldNum", str = "1" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
-    
-  # Slide with Chart 2:
-  add_slide(layout = "Content with Caption", master = "Office Theme") %>%
-  ph_with_text(type = "body", index=2,str = cap2) %>% 
-  ph_with_img(type = "body", index = 1, src = "img/chart2.png") %>%
-  ph_with_text(type = "title", index=1,str = "More homes held off market") %>%
+  
+  # Slide 3 - Caseload by Consultant:
+  add_slide(layout = "Content Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "body", index=1,str = "Caseload Historical Comparison") %>% 
+  ph_with_table(type = "body", value = slide3.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "3" ) %>%
+  ph_with_text(type = "sldNum", str = "1" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
     
   # Slide with Chart 3:
