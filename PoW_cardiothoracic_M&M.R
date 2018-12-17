@@ -167,58 +167,109 @@ if (dim(slide4.data2)[1] == 0) {
 # slide 5 ------------------------------------------
 #Outpatient Wait day plot + mean/medians talbe
 
+#Summary Stats Table
 slide5.data <- MM.Pres_Main %>%
   filter(Adm_Elective == 1) %>%
   group_by(Month) %>%
   mutate(waitdays = OpDate - ConsultDate) %>%
   select(Month, waitdays) %>%
   summarise(Mean = round(mean(waitdays, na.rm = TRUE), 1), Median = median(waitdays, na.rm = TRUE)) %>%
-  rbind(c("Historical", 67.7, 68))
-  
+  rbind(list("Historical", 67.7, 68))
+
+###Variable setup for graphing
+
+#highlight max values for each of the waiting periods
 slide5.plotdata <- MM.Pres_Main %>%
-  
+  filter(Adm_Elective == 1) %>%
+  select(OpConsultant, Pt_LName, OpDate, ConsultDate) %>%
+  group_by(OpConsultant) %>%
+  mutate(Waitdays = as.numeric(OpDate - ConsultDate))
+
+slide5.plotdata.maxwait <- slide5.plotdata %>%
+  group_by(OpConsultant) %>%
+  summarise(Max_wait = max(Waitdays))
+
+#Create plot from the data
+slide5.plot <- ggplot(slide5.plotdata, aes(Pt_LName, Waitdays)) + 
+  geom_col() +
+  facet_wrap(~OpConsultant, scales = "free_y") +
+  geom_hline(aes(yintercept=90, linetype = "90 Days"), color="#009E73", size = 1) +     #10 day inpatient wait time
+  geom_hline(aes(yintercept=slide5.data[[dim(slide5.data)[1], 2]], linetype = "Historical Average"), colour="#D55E00", size = 1) +   #historical mean inpatient wait time
+  geom_hline(aes(yintercept=mean(slide5.plotdata$Waitdays, na.rm = TRUE), linetype = "Group Average"), colour="#000000", size = 1)
+
+#Format plot labels and add layout changes
+slide5.plot <- slide5.plot + labs(x = "", y = "Wait Period (Days)", 
+                                  title = "Outpatient Wait Days", 
+                                  caption = "*Values calculated from consult date \n *Consult date defined as 'First consult where patient is deemed suitable for surgery'") +
+  theme_minimal() +
+  scale_linetype_manual(name = "", values = c(2, 1, 2), 
+                        guide = guide_legend(override.aes = list(color = c("#009E73", "#000000", "#D55E00")))) +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        axis.line = element_line(colour = "black"),
+        legend.position = "bottom") +
+  coord_flip() #flip the axes for readability
 
 
-
-slide5.plot
 
 # slide 6 ------------------------------------------
-#Outpatient Wait >100 day Patients
+#Outpatient Wait >90 day Patients
 
 
 # slide 7 ------------------------------------------
 #Inpatient Wait day plot + mean/medians table
 
+#Summary Stats Table
 slide7.data <- MM.Pres_Main %>%
   filter(Adm_Elective == 0) %>%
   group_by(Month) %>%
   mutate(waitdays = OpDate - ConsultDate) %>%
   select(Month, waitdays) %>%
   summarise(Mean = round(mean(waitdays, na.rm = TRUE), 1), Median = median(waitdays, na.rm = TRUE)) %>%
-  rbind(c("Historical", 5.8, 4))
+  rbind(list("Historical", 5.8, 4))
 
 ###Variable setup for graphing
-#Historical Data has been added to previous summary table
-Hlinedata <- data.frame(x = c(-Inf, Inf), y = slide7.data[[dim(slide7.data)[1], 2]])
-#highlight max values for each of the waiting periods
-max_wait <- MM.Pres_Main %>%
-  group_by(OpConsultant) %>%
-  mutate(waitdays = OpDate - ConsultDate) %>%
-  summarise(Max_wait = max(waitdays))
 
-plot <- ggplot(maindata[maindata$Adm_Elective==1], aes(Pt_LName, waitdays)) + 
+#highlight max values for each of the waiting periods
+slide7.plotdata <- MM.Pres_Main %>%
+  filter(Adm_Elective == 0) %>%
+  select(OpConsultant, Pt_LName, OpDate, ConsultDate) %>%
+  group_by(OpConsultant) %>%
+  mutate(Waitdays = as.numeric(OpDate - ConsultDate))
+
+#highlight cases of interest on the graph 
+slide7.plotdata.maxwait <- slide7.plotdata %>%
+  group_by(OpConsultant) %>%
+  summarise(Max_wait = max(Waitdays))
+
+#Create plot from the data
+slide7.plot <- ggplot(slide7.plotdata, aes(Pt_LName, Waitdays)) + 
   geom_col() +
   facet_wrap(~OpConsultant, scales = "free_y") +
-  coord_flip() + #flip the axes for readability
-  geom_hline(aes(yintercept=historicaldata["Outpatient Wait Days"]), colour="red")
-
-plot <- plot + labs(x = "", y = "Wait Period (Days)", title = "Outpatient Wait Days", caption = "*Values calculated from initial consult date") +
+  geom_hline(aes(yintercept=10, linetype = "10 Days"), colour="#009E73", size = 1) +     #10 day inpatient wait time
+  geom_hline(aes(yintercept=slide7.data[[dim(slide7.data)[1], 2]], linetype = "Historical Average"), colour="#D55E00", size = 1) +  #historical mean inpatient wait time
+  geom_hline(aes(yintercept=mean(slide7.plotdata$Waitdays, na.rm = TRUE), linetype = "Group Average"), colour="#000000", size = 1) #group average
+  
+#Format plot labels and add layout changes
+slide7.plot <- slide7.plot + labs(x = "", y = "Wait Period (Days)", 
+                                  title = "Inpatient Wait Days", 
+                                  caption = "*Values calculated from consult date \n *Consult date defined as 'First consult where patient is deemed suitable for surgery'") +
   theme_minimal() +
+  scale_linetype_manual(name = "", values = c(2, 1, 2), 
+                        guide = guide_legend(override.aes = list(color = c("#009E73", "#000000", "#D55E00")))) +
   theme(panel.grid.minor = element_blank(),
         panel.grid.major.y = element_blank(),
         axis.line = element_line(colour = "black"),
         legend.position = "bottom") +
-  coord_flip()
+  coord_flip() #flip the axes for readability
+
+
+
+# slide 8 ------------------------------------------
+#Outpatient Wait >10 day Patients
+
+
+
 
 
 ########################################################################################
@@ -434,8 +485,8 @@ doc <- read_pptx("Powerpoint_Templates/blank.pptx") %>%
   ph_with_text(type = "sldNum", str = "1" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
     
-  # Slide with Chart 3:
-  add_slide(layout = "Content with Caption", master = "Office Theme") %>%
+  # Slide 4 - Mortalities < 30 days:
+  add_slide(layout = "Content Small Title", master = "Office Theme") %>%
   ph_with_text(type = "body", index=2,str = cap3) %>% 
   ph_with_img(type = "body", index = 1, src = "img/chart3.png") %>%
   ph_with_text(type = "title", index=1,str = "Growth comes from other category") %>%
@@ -443,17 +494,17 @@ doc <- read_pptx("Powerpoint_Templates/blank.pptx") %>%
   ph_with_text(type = "sldNum", str = "4" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
     
-  # Slide with Chart 4:
-  add_slide(layout = "Content with Caption", master = "Office Theme") %>%
-  ph_with_text(type = "body", index=2,str = cap4) %>% 
-  ph_with_img(type = "body", index = 1, src = "img/chart4.png") %>%
-  ph_with_text(type = "title", index=1,str = "Breakdown of the other category") %>%
+  # Slide 5 - Outpatient Wait Days:
+  add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "body", index= 1, str = "Outpatient Wait Days") %>% 
+  ph_with_gg(type = "body", index = 2, ) %>%
+  ph_with_table(type = "body", )
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "5" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
     
-  # Slide with Chart 5:
-  add_slide(layout = "Content with Caption", master = "Office Theme") %>%
+  # Slide 6 - Outpatient Wait > 100:
+  add_slide(layout = "Content Small Title", master = "Office Theme") %>%
   ph_with_text(type = "body", index=2,str = cap5) %>% 
   ph_with_img(type = "body", index = 1, src = "img/chart5.png") %>%
   ph_with_text(type = "title", index=1,str = "Distribution of other category over time") %>%
@@ -461,6 +512,24 @@ doc <- read_pptx("Powerpoint_Templates/blank.pptx") %>%
   ph_with_text(type = "sldNum", str = "6" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
     
+  # Slide 7 - Inpatient Wait Days:
+  add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "body", index= 1, str = "Outpatient Wait Days") %>% 
+  ph_with_gg(type = "body", index = 2, ) %>%
+  ph_with_table(type = "body", )
+  ph_with_text(type = "ftr", str = myftr ) %>%
+  ph_with_text(type = "sldNum", str = "5" ) %>%
+  ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%    
+    
+  # Slide 8 - Inpatient Wait > 10 days:
+  add_slide(layout = "Content Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "body", index=2,str = cap5) %>% 
+  ph_with_img(type = "body", index = 1, src = "img/chart5.png") %>%
+  ph_with_text(type = "title", index=1,str = "Distribution of other category over time") %>%
+  ph_with_text(type = "ftr", str = myftr ) %>%
+  ph_with_text(type = "sldNum", str = "6" ) %>%
+  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
+      
   # Print to save powerpoint
 
   if(No.Months == 1){
