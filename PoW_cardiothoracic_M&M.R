@@ -117,8 +117,20 @@ if(No.Months == 1) {                              #if one month is present withi
 # Slide 2 ------------------------------------------
 #Caseload historical comparison
 slide2.data <- MM.Pres_Main %>%
-  group_by(Num_Months) %>%
-  summarise(avg = mean(Op_Age), median(Op_Age))
+  group_by(Month) %>%
+  summarise("Elective Count" = sum(Op_StatusPOW == 1, na.rm = TRUE),
+            "Urgent Count" = sum(Op_StatusPOW == 2, na.rm = TRUE),
+            "Emergency Count" = sum(Op_StatusPOW == 3, na.rm = TRUE),
+            "Redo" = sum(Op_Incidence, na.rm = TRUE), 
+            "Mean Age" = mean(Op_Age, na.rm = TRUE), 
+            "Median Age" = median(Op_Age, na.rm = TRUE),
+            "Mean Logistic EUROSCORE" = mean(EUROScoreLogistic, na.rm = TRUE),
+            "Median Logistic EUROSCORE" = median(EUROScoreLogistic, na.rm = TRUE)
+            )
+  
+  #t() %>% #transpose the dataframe. Needs fixing.
+  #mutate("Percentage" = percent(.[[2]] / Total.Cases[['n']])) %>%   #add percentages needs fixing.
+  #mutate("Percentage2" = percent(.[[3]] / Total.Cases[['n']])) 
 
 
 
@@ -200,7 +212,7 @@ slide5.plot <- ggplot(slide5.plotdata, aes(Pt_LName, Waitdays)) +
 #Format plot labels and add layout changes
 slide5.plot <- slide5.plot + labs(x = "", y = "Wait Period (Days)", 
                                   title = "Outpatient Wait Days", 
-                                  caption = "*Values calculated from consult date \n *Consult date defined as 'First consult where patient is deemed suitable for surgery'") +
+                                  caption = "*Values calculated from Consult Date \n *Consult Date defined as 'First consult where patient is deemed suitable for surgery'") +
   theme_minimal() +
   scale_linetype_manual(name = "", values = c(2, 1, 2), 
                         guide = guide_legend(override.aes = list(color = c("#009E73", "#000000", "#D55E00")))) +
@@ -253,7 +265,7 @@ slide7.plot <- ggplot(slide7.plotdata, aes(Pt_LName, Waitdays)) +
 #Format plot labels and add layout changes
 slide7.plot <- slide7.plot + labs(x = "", y = "Wait Period (Days)", 
                                   title = "Inpatient Wait Days", 
-                                  caption = "*Values calculated from consult date \n *Consult date defined as 'First consult where patient is deemed suitable for surgery'") +
+                                  caption = "*Values calculated from Consult Date \n *Consult Date defined as 'First consult where patient is deemed suitable for surgery'") +
   theme_minimal() +
   scale_linetype_manual(name = "", values = c(2, 1, 2), 
                         guide = guide_legend(override.aes = list(color = c("#009E73", "#000000", "#D55E00")))) +
@@ -267,148 +279,6 @@ slide7.plot <- slide7.plot + labs(x = "", y = "Wait Period (Days)",
 
 # slide 8 ------------------------------------------
 #Outpatient Wait >10 day Patients
-
-
-
-
-
-########################################################################################
-
-#sample code for MnMs
-
-####Age
-MM.Pres_Main %>%
-  group_by(Num_Months) %>%
-  summarise(avg = mean(Op_Age), median(Op_Age))
-
-####Caseload by consultant
-Caseload.Consultant <- MM.Pres_Main %>%
-  group_by(OpConsultant, OpCategory) %>%
-  summarise(count=n()) %>%
-  spread(OpConsultant, count) %>%
-  adorn_totals("row")
-
-####ICU mean/medians
-ICU <- MM.Pres_Main %>%
-  mutate(BedBlock = (ICUDays - ICUReqDays)) %>%
-  select(Pt_LName, Pt_FName, ICUReqDays, ICUDays, BedBlock) %>%
-  summarise(ICUdaysMean = mean(ICUDays, na.rm = TRUE),
-            ICUdaysmedian = median(ICUDays, na.rm = TRUE)
-            )
-
-####ICU bedblock
-ICUbedblock <- MM.Pres_Main %>%
-  mutate(BedBlock = (ICUDays - ICUReqDays)) %>%
-  select(Pt_LName, Pt_FName, ICUReqDays, ICUDays, BedBlock) %>%
-  filter(ICUReqDays > 0) %>%
-  summarise(BedBlockaverageperpatient = mean(BedBlock, na.rm = TRUE) * 24,
-            maxbedblock = max(BedBlock, na.rm = TRUE) *24
-            )
-
-####Outpatients mean/medians
-Outpatients.Inpatients <- MM.Pres_Main %>%
-  mutate(waitdays = OpDate - ConsultDate) %>%
-  select(Adm_Elective, waitdays) %>%
-  group_by(Adm_Elective) %>%
-  summarise(Mean = mean(waitdays, na.rm = TRUE), median = median(waitdays, na.rm = TRUE))
-
-####Length of Stay
-LOS <- MM.Pres_Main %>%
-  mutate(LengthOfStay = DischargeDate - OpDate) %>%
-  select(Pt_LName, Pt_FName, DischargeDate, OpDate, LengthOfStay) %>%
-  summarise(Mean = mean(LengthOfStay, na.rm = TRUE),
-            median = median(LengthOfStay, na.rm = TRUE),
-            )
-
-LOS.over100 <- MM.Pres_Main %>%
-  mutate(LengthOfStay = DischargeDate - OpDate) %>%
-  select(Pt_LName, Pt_FName, DischargeDate, OpDate, LengthOfStay, Num_Months) %>%
-  filter(LengthOfStay>10) %>%
-  arrange(desc(LengthOfStay)) %>%
-  spread(Num_Months, LengthOfStay)
-
-####IABP
-IABP.data <- MM.Pres_Main %>%
-  filter(IABP==1) %>%
-  select(Pt_LName, Pt_FName, OpConsultantInitials, OpDescription, Num_Months, IABP, IABP_When, IABP_Indication)
-
-
-#### Transfusions
-Transfusions <- MM.Pres_Main %>%
-  select(Num_Months, Pt_LName, Pt_FName, OpConsultantInitials, OpDescription, Bld_Tot_RBC, Bld_Tot_FFP, Bld_Tot_Plt, Bld_Tot_Cryo, Bld_Tot_FVIIa_mg, Bld_Tot_PTX) %>%
-  mutate(Total_Blood_Products = Bld_Tot_RBC + Bld_Tot_FFP + Bld_Tot_Plt + Bld_Tot_Cryo) %>%
-  group_by(Num_Months) %>%
-  summarise(numberoftransfusions = sum(Total_Blood_Products>1),
-            RBCover4 = sum(Bld_Tot_RBC>4),
-            RBCover10 = sum(Bld_Tot_RBC>15),
-            counttotalover15 = sum(Total_Blood_Products >15))
-
-
-Many.Transfusions <- MM.Pres_Main %>%
-  select(Num_Months, Pt_LName, Pt_FName, OpConsultantInitials, OpDescription, Bld_Tot_RBC, Bld_Tot_FFP, Bld_Tot_Plt, Bld_Tot_Cryo, Bld_Tot_FVIIa_mg, Bld_Tot_PTX) %>%
-  mutate(Total_Blood_Products = Bld_Tot_RBC + Bld_Tot_FFP + Bld_Tot_Plt + Bld_Tot_Cryo) %>%
-  group_by(Num_Months) %>%
-  filter(Total_Blood_Products>=10) %>%
-  arrange(Num_Months, desc(Total_Blood_Products))
-
-####stroke patients
-stroke.data <- MM.Pres_Main %>%
-  filter(PO_Stroke>0)
-
-####AF patients
-af.data <- MM.Pres_Main %>%
-  filter(PO_AF>0) %>%
-  group_by(Num_Months) %>%
-  summarise(count = n())
-
-#### Temporary pacing
-temppacing.data <- MM.Pres_Main %>%
-  filter(PO_TempPacing >0) %>%
-  group_by(Num_Months) %>%
-  summarise(count = n())
-
-####PPM insertion
-PPM.data <- MM.Pres_Main %>%
-  filter(PO_PPMforHB >0 | PO_PPMforBrady > 0) %>%
-  group_by(Num_Months) %>%
-  summarise(count = n())
-
-####Cardioversion
-cardioversion.data <- MM.Pres_Main %>%
-  filter(PO_DCCV >0) %>%
-  group_by(Num_Months) %>%
-  summarise(count = n())
-
-####Ventilation
-venilation.data <- MM.Pres_Main %>%
-  mutate(VentilationTime = PO_ExtbDt - PO_ICUAdmDt) %>%
-  select(Pt_LName, Pt_FName, Num_Months, VentilationTime) %>%
-  filter(VentilationTime > 1) %>%
-  group_by(Num_Months) %>%
-  summarise(count = n())
-  
-####Reintubated
-Reintubation.data <- MM.Pres_Main %>%
-  
-
-
-####Pneumothorax
-Pneumothorax.data <- MM.Pres_Main %>%
-  filter(PO_PTX >0) %>%
-  group_by(Num_Months) %>%
-  summarise(count = n())
-
-####DVT patient
-DVT.data <- MM.Pres_Main %>%
-  filter(PO_DVT > 0) %>%
-  select(Pt_LName, Pt_FName,OpConsultantInitials, OpDescription, PO_DVT)
-
-
-
-
-
-
-
 
 
 
@@ -471,64 +341,60 @@ doc <- read_pptx("Powerpoint_Templates/blank.pptx") %>%
     
   # Slide 2 - Caseload historical comparison:
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "body", index=1,str = "Caseload Historical Comparison") %>% 
+  ph_with_text(type = "title", index=1,str = "Caseload Historical Comparison") %>% 
   ph_with_table(type = "body", value = slide2.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "1" ) %>%
+  ph_with_text(type = "sldNum", str = "2" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
   
   # Slide 3 - Caseload by Consultant:
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "body", index=1,str = "Caseload Historical Comparison") %>% 
+  ph_with_text(type = "title", index=1,str = "Caseload by Consultant") %>% 
   ph_with_table(type = "body", value = slide3.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "1" ) %>%
+  ph_with_text(type = "sldNum", str = "3" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
     
   # Slide 4 - Mortalities < 30 days:
-  add_slide(layout = "Content Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "body", index=2,str = cap3) %>% 
-  ph_with_img(type = "body", index = 1, src = "img/chart3.png") %>%
-  ph_with_text(type = "title", index=1,str = "Growth comes from other category") %>%
+  add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "title", index=1,str = "Mortalities < 30 days") %>% 
+  ph_with_table(type = "body", index=1, value = slide4.data1) %>%
+  ph_with_table(type = "body", index=2, value = slide4.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "4" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
     
   # Slide 5 - Outpatient Wait Days:
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "body", index= 1, str = "Outpatient Wait Days") %>% 
-  ph_with_gg(type = "body", index = 2, ) %>%
-  ph_with_table(type = "body", )
+  ph_with_text(type = "title", index = 1, str = "Outpatient Wait Days") %>% 
+  ph_with_gg(type = "body", index = 1, value = slide5.plot) %>%
+  ph_with_table(type = "body", index = 2, value = slide5.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "5" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
     
-  # Slide 6 - Outpatient Wait > 100:
+  # Slide 6 - Outpatient Wait > 90:
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "body", index=2,str = cap5) %>% 
-  ph_with_img(type = "body", index = 1, src = "img/chart5.png") %>%
-  ph_with_text(type = "title", index=1,str = "Distribution of other category over time") %>%
+  ph_with_text(type = "title", index = 1, str = "Outpatient Wait > 90") %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "6" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
     
   # Slide 7 - Inpatient Wait Days:
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "body", index= 1, str = "Outpatient Wait Days") %>% 
-  ph_with_gg(type = "body", index = 2, ) %>%
-  ph_with_table(type = "body", )
+  ph_with_text(type = "title", index = 1, str = "Inpatient Wait Days") %>% 
+  ph_with_gg(type = "body", index = 1, value = slide7.plot) %>%
+  ph_with_table(type = "body", index = 2, value = slide7.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "5" ) %>%
+  ph_with_text(type = "sldNum", str = "7" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%    
-    
+  
   # Slide 8 - Inpatient Wait > 10 days:
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "body", index=2,str = cap5) %>% 
-  ph_with_img(type = "body", index = 1, src = "img/chart5.png") %>%
-  ph_with_text(type = "title", index=1,str = "Distribution of other category over time") %>%
+  ph_with_text(type = "title", index=1,str = "Inpatient Wait > 10 days") %>% 
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "6" ) %>%
-  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
+  ph_with_text(type = "sldNum", str = "8" ) %>%
+  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y"))
       
   # Print to save powerpoint
 
