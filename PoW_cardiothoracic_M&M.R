@@ -11,6 +11,7 @@ library(janitor)
 library(lubridate)
 library(scales)
 library(stringr)
+library(tibble)
 
 #Load Data -----------------------------
 
@@ -126,7 +127,7 @@ slide2.data <- MM.Pres_Main %>%
   summarise("Elective Count" = sum(Op_StatusPOW == 1, na.rm = TRUE),
             "Urgent Count" = sum(Op_StatusPOW == 2, na.rm = TRUE),
             "Emergency Count" = sum(Op_StatusPOW == 3, na.rm = TRUE),
-            "Redo" = sum(Op_Incidence, na.rm = TRUE), 
+            "Redo" = sum(Op_Incidence > 1, na.rm = TRUE), 
             "Mean Age" = mean(Op_Age, na.rm = TRUE), 
             "Median Age" = median(Op_Age, na.rm = TRUE),
             "Mean Logistic EUROSCORE" = mean(EUROScoreLogistic, na.rm = TRUE),
@@ -251,6 +252,8 @@ slide6.data2 <- MM.Pres_Main %>%
   filter(Waitdays > 90) %>%
   arrange(Month, desc(Waitdays)) %>%
   select(Pt_LName, OpConsultant, OpDescription, Month, Waitdays, "Pre-OP Comments" = PreOp_Comments)
+
+
 
 # slide 7 ------------------------------------------
 #Inpatient Wait day plot + mean/medians table
@@ -482,26 +485,61 @@ if(nrow(slide13.data2)==0){
 # slide 14 ------------------------------------------
 # IABP Use
 
+
 slide14.data1 <- MM.Pres_Main %>% 
   select(Month, IABP, IABP_When) %>%
-  mutate
   group_by(Month, IABP_When) %>%
-  summarise(n()) %>%
-  rbind(list("Historical (Per Month)", "11.2%", "91.3%", "2.6%", "6.1%"))
+  summarise("Count" = n()) %>%
+  filter(IABP_When != 0) %>%
+  spread(Month, Count) %>%
+  adorn_totals("row")
+
+if(No.Months == 2 & is.element('Pre-Op', slide14.data1[['IABP_When']]) == FALSE) { #this sequence adds any missing rows for visual purposes (2 month data)
+  slide14.data1 <- rbind(slide14.data1, c('Pre-Op', 0, 0))
+} else if(is.element('Intra-Op', slide14.data1[['IABP_When']]) == FALSE) {
+  slide14.data1 <- rbind(slide14.data1, c('Intra-Op', 0, 0))
+} else if(is.element('Post-Op', slide14.data1[['IABP_When']]) == FALSE) {
+  slide14.data1 <- rbind(slide14.data1, c('Post-Op', 0, 0))
+}
+
+if(No.Months == 1 & is.element('Pre-Op', slide14.data1[['IABP_When']]) == FALSE) { #this sequence adds any missing rows for visual purposes (1 month data)
+  slide14.data1 <- rbind(slide14.data1, c('Pre-Op', 0))
+} else if(is.element('Intra-Op', slide14.data1[['IABP_When']]) == FALSE) {
+  slide14.data1 <- rbind(slide14.data1, c('Intra-Op', 0))
+} else if(is.element('Post-Op', slide14.data1[['IABP_When']]) == FALSE) {
+  slide14.data1 <- rbind(slide14.data1, c('Post-Op', 0))
+}
+
+IABP_when_order <- c("Pre-Op", "Intra-Op", "Post-Op", "Total") #create desired order for rows
+slide14.data1 %<>%
+  slice(match(IABP_when_order, IABP_When))                 #add match dataframe to the ordered vector
+
+slide14.data1$`Historical (per month)` <- (c("91.3%", "2.6%", "6.1%", "11.2%")) #add historical data for comparison
+
+if(No.Months == 2) {
+  slide14.data1 %<>% mutate("Percentage" = percent(as.numeric(.[[2]]) / as.numeric(.[[4, 2]])),  #add percentages for each surgery category as a proportion of the total cases (2 months)
+                            "Percentage2" = percent(as.numeric(.[[3]]) / as.numeric(.[[4, 3]])))
+} 
+
+if(No.Months == 1) {
+  slide14.data1 %<>% mutate("Percentage" = percent(.[[2]] / Total.Cases[[1, length(.[2])]])),  #add percentages for each surgery category as a proportion of the total cases (1 months)
+}  
+
+slide14.data1 <- slide14.data1[, c(1, 2, 5, 3, 6, 4)] #reorder the columns
 
 
+#patients with IABP insertions
+slide14.data2 <- MM.Pres_Main %>%                #count operation categories by consultant
+  select(Pt_LName, OpConsultant, OpDescription,  Month, IABP_Indication, IABP_When) %>%
+  group_by(Month) %>%
+  filter(IABP_Indication != 0)
 
 
+# slide 15 ------------------------------------------
+# Blood Transfusions 
 
-slide3.data <- MM.Pres_Main %>%                #count operation categories by consultant
-  select(OpConsultant, OpCategory) %>%
-  group_by(OpConsultant, OpCategory) %>%
-  summarise(count = n()) %>%
-  spread(OpCategory, count) 
-
-
-
-
+slide15.data1 <- MM.Pres_Main %>% 
+  
 
 ##########################################################################################
 
@@ -662,8 +700,8 @@ doc <- read_pptx("Powerpoint_Templates/ppt.pptx") %>%
   # slide 14 - IABP Use
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "IABP Use") %>% 
-  ph_with_table(type = "body", index=1, value = slide10.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide10.data2) %>%
+  ph_with_table(type = "body", index=1, value = slide14.data1) %>%
+  ph_with_table(type = "body", index=2, value = slide14.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "14" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y"))
