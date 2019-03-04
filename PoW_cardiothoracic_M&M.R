@@ -522,7 +522,7 @@ if(No.Months == 2) {
 } 
 
 if(No.Months == 1) {
-  slide14.data1 %<>% mutate("Percentage" = percent(.[[2]] / Total.Cases[[1, length(.[2])]])),  #add percentages for each surgery category as a proportion of the total cases (1 months)
+  slide14.data1 %<>% mutate("Percentage" = percent(.[[2]] / Total.Cases[[1, length(.[2])]]))  #add percentages for each surgery category as a proportion of the total cases (1 months)
 }  
 
 slide14.data1 <- slide14.data1[, c(1, 2, 5, 3, 6, 4)] #reorder the columns
@@ -538,8 +538,35 @@ slide14.data2 <- MM.Pres_Main %>%                #count operation categories by 
 # slide 15 ------------------------------------------
 # Blood Transfusions 
 
-slide15.data1 <- MM.Pres_Main %>% 
+slide15.data2 <- MM.Pres_Main %>%
+  group_by(OperationID) %>% 
+  mutate(Bld_Tot_All = sum(Bld_Tot_RBC, Bld_Tot_FFP, Bld_Tot_Plt, Bld_Tot_Cryo, Bld_Tot_FVIIa_mg, Bld_Tot_PTX)) %>% 
+  select(OperationID, Month, Pt_LName, OpCategory, OpConsultantInitials, Bld_Tot_RBC, Bld_Tot_FFP, Bld_Tot_Plt, Bld_Tot_Cryo, Bld_Tot_FVIIa_mg, Bld_Tot_PTX, Bld_Tot_All) %>% 
+  mutate(`Recieved_Bld_Prod` = if_else(Bld_Tot_All > 0, 1, 0),
+         `RBC > 4 U` = if_else(Bld_Tot_RBC > 4, 1, 0),
+         `RBC > 15 U` = if_else(Bld_Tot_RBC > 15, 1, 0),
+         `Any Blood Prod > 15 U` = if_else(Bld_Tot_All > 15, 1, 0))
+
+slide15.data1 <- slide15.data2 %>%  
+  group_by(Month) %>% 
+  summarise(`Recieved Blood Product` = paste(sum(`Recieved_Bld_Prod`), ' (',percent(sum(`Recieved_Bld_Prod`)/n()),')', sep = ""),
+            `RBC > 4 Units` = paste(sum(`RBC > 4 U`), ' (', percent(sum(`RBC > 4 U`)/n()),')', sep = ""),
+            `RBC > 15 Units` = paste(sum(`RBC > 15 U`), ' (', percent(sum(`RBC > 15 U`)/n()), ')', sep = ""),
+            `Any Blood Prod > 15 Units` = paste(sum(`Any Blood Prod > 15 U`), ' (', percent(sum(`Any Blood Prod > 15 U`)/n()), ')', sep = "")) %>%
+  rbind(list("Historical (Per Month)", "61.8%", "13.1%", "0.9%", "6.5%"))
+
+slide15.data2 %<>% 
+  filter(Bld_Tot_All >= 10) %>% 
+  arrange(Month, desc(Bld_Tot_All)) %>% 
+  select(-one_of("OperationID", "Recieved_Bld_Prod", "RBC > 4 U", "RBC > 15 U", "Any Blood Prod > 15 U"))
+
+slide15.data2 <- slide15.data2[, 2:length(slide15.data2)]
   
+# slide 16 ------------------------------------------
+# Reintubation & Return to ICU
+
+
+
 
 ##########################################################################################
 
