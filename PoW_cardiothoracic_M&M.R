@@ -34,6 +34,7 @@ MM.RTT <-       read_csv(file = file.path("D:", PathFile, "qry_MMPres_RTT.csv"))
 str(MM.CaseStudy)
 #Fix Variable formats
 MM.CaseStudy$OpDate <- as.Date(MM.CaseStudy$OpDate, "%d/%m/%Y")
+MM.Inf$OpDate <- as.Date(MM.Inf$OpDate, "%d/%m/%Y")
 
 #####Pres_Main Dataset#####
 
@@ -51,10 +52,20 @@ MM.Pres_Main$PO_Comments <- as.character(MM.Pres_Main$PO_Comments)
 
 #create date number variable
 MM.Pres_Main$Num_Months <- month(MM.Pres_Main$OpDate) - month(min(MM.Pres_Main$OpDate)) + 1
+MM.Inf$Num_Months <- month(MM.Inf$OpDate) - month(min(MM.Inf$OpDate)) + 1
 #add month variable
 MM.Pres_Main %<>% mutate(Month = format(OpDate, "%B"))
+MM.Inf %<>% mutate(Month = format(OpDate, "%B"))
 
-
+#add the total caseload (per month) to inf table
+monthtotals <- MM.Pres_Main %>%
+  group_by(Month) %>% 
+  summarise(Total = n()) %>% 
+  arrange(Month) %>% 
+  select(Month, Total)
+  
+MM.Inf %<>% group_by(`Patient Details`) %>% 
+  mutate(TotalCasesMontly = if_else(Num_Months == 1, monthtotals[[1, 2]], monthtotals[[2, 2]]))
 
 # Determine how many dates selected -----
 First.Month <- min(MM.Pres_Main$Num_Months)
@@ -68,6 +79,9 @@ Second.Month <- format(max(MM.Pres_Main$OpDate), "%B")
 Total.Cases <- MM.Pres_Main %>%
   group_by(Month) %>%
   summarise(n = n())
+
+
+
 
 
 #Presentation setup ---------------------------------------------------
@@ -158,7 +172,7 @@ fncols <- function(data, cname) {       #function adds op category full of NA if
 
 slide3.data <- fncols(slide3.data, c("OpConsultant", "CABG","CABG/Other","CABG/Valve", "CABG/Valve/Other", "Other", "Valve", "Valve/Other")) #run function to add missing cols
 
-slide3.data <- slide3.data[, c("OpConsultant", "CABG","CABG/Other", "Valve", "Valve/Other", "CABG/Valve", "CABG/Valve/Other", "Other")]
+slide3.data <- slide3.data[, c("OpConsultant", "CABG","CABG/Other", "Valve", "Valve/Other", "CABG/Valve", "CABG/Valve/Other", "Other")] #order the columns
 
 slide3.data <- cbind(slide3.data, TOTAL = rowSums(slide3.data[2:length(slide3.data)], na.rm = TRUE))        #add totals
 
@@ -535,6 +549,7 @@ slide14.data2 <- MM.Pres_Main %>%                #count operation categories by 
   filter(IABP_Indication != 0)
 
 
+
 # slide 15 ------------------------------------------
 # Blood Transfusions 
 
@@ -545,7 +560,7 @@ slide15.data2 <- MM.Pres_Main %>%
   mutate(`Recieved_Bld_Prod` = if_else(Bld_Tot_All > 0, 1, 0),
          `RBC > 4 U` = if_else(Bld_Tot_RBC > 4, 1, 0),
          `RBC > 15 U` = if_else(Bld_Tot_RBC > 15, 1, 0),
-         `Any Blood Prod > 15 U` = if_else(Bld_Tot_All > 15, 1, 0))
+         `Any Blood Prod > 15 U` = if_else(Bld_Tot_All > 15, 1, 0)) #set up counts based upon transfusion conditions for summary in next lines
 
 slide15.data1 <- slide15.data2 %>%  
   group_by(Month) %>% 
@@ -553,7 +568,7 @@ slide15.data1 <- slide15.data2 %>%
             `RBC > 4 Units` = paste(sum(`RBC > 4 U`), ' (', percent(sum(`RBC > 4 U`)/n()),')', sep = ""),
             `RBC > 15 Units` = paste(sum(`RBC > 15 U`), ' (', percent(sum(`RBC > 15 U`)/n()), ')', sep = ""),
             `Any Blood Prod > 15 Units` = paste(sum(`Any Blood Prod > 15 U`), ' (', percent(sum(`Any Blood Prod > 15 U`)/n()), ')', sep = "")) %>%
-  rbind(list("Historical (Per Month)", "61.8%", "13.1%", "0.9%", "6.5%"))
+  rbind(list("Historical (Per Month)", "(61.8%)", "(13.1%)", "(0.9%)", "(6.5%)"))
 
 slide15.data2 %<>% 
   filter(Bld_Tot_All >= 10) %>% 
@@ -562,18 +577,103 @@ slide15.data2 %<>%
 
 slide15.data2 <- slide15.data2[, 2:length(slide15.data2)]
   
+
+
 # slide 16 ------------------------------------------
 # Reintubation & Return to ICU
 
+slide16.data1 <- MM.Pres_Main %>% 
+  select(Month, PO_Reintubation, PO_ReturnICU) %>%
+  group_by(Month) %>% 
+  summarise(`Return to ICU` = paste(sum(PO_ReturnICU, na.rm = T), ' (', percent(sum(PO_ReturnICU, na.rm = T)/n()), ')', sep = ""),
+            `ReIntubation` = paste(sum(PO_Reintubation, na.rm = T), ' (', percent(sum(PO_Reintubation, na.rm = T)/n()), ')', sep = "")) %>% 
+  rbind(list("Historical (Per Month)", "2.0%", "2.2%"))
+
+slide16.data2 <- MM.Pres_Main %>% 
+  filter(PO_Reintubation == 1) %>% 
+  arrange(Month) %>% 
+  mutate(ReIntubated = paste(Pt_LName, ' (', OpConsultantInitials, ') ', OpCategory, sep = ''),
+         "Post-OP Issues" = paste(if_else(PO_RTT == 1, "Return to Theatre", ""), sep = ", ")) %>% 
+  select(ReIntubated, `Post-OP Issues`)
+
+slide16.data3 <- MM.Pres_Main %>% 
+  filter(PO_ReturnICU == 1) %>% 
+  arrange(Month) %>% 
+  mutate(`Return to ICU` = paste(Pt_LName, ' (', OpConsultantInitials, ') ', OpCategory, sep = ''),
+         "Post-OP Issues" = paste(if_else(PO_RTT == 1, "Return to Theatre", ""), sep = ", ")) %>% 
+  select(`Return to ICU`, Month, `Post-OP Issues`)
+  
+
+
+# slide 17 ------------------------------------------
+# Return to Theatre
+
+slide17.data1 <- MM.Pres_Main %>% 
+  group_by(Month) %>% 
+  summarise(PO_RTT = paste(sum(PO_RTT, na.rm = T), ' (', percent(sum(PO_RTT, na.rm = T)/n()), ')', sep = "")) %>% 
+  rbind(list("Historical (Per Month)", "5.1%"))
+
+slide17.data2 <- MM.RTT
+
+
+
+# slide 18 ------------------------------------------
+# Infections
+
+slide18.data1 <- MM.Inf %>% 
+  group_by(Month) %>% 
+  summarise(`Total Patients` = paste(n(), ' (', percent(n() / min(TotalCasesMontly)), ')', sep = ""))
+
+slide18.data2 <- MM.Inf %>%
+  group_by(Month) %>%
+  summarise("Superficial Sternum" = paste(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Superficial", 1, 0)), ' (', percent(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Superficial", 1, 0)) / min(TotalCasesMontly)), ')', sep = ""),
+            "Deep Sternum" = paste(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Deep", 1, 0)), ' (', percent(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Deep", 1, 0)) / min(TotalCasesMontly)), ')', sep = ""),
+            "Leg" = paste(sum(InfSite=="Leg"), ' (', percent(sum(InfSite=="Leg") / min(TotalCasesMontly)), ')', sep = ""),
+            "Radial" = paste(sum(InfSite=="Radial"), ' (', percent(sum(InfSite=="Radial") / min(TotalCasesMontly)), ')', sep = ""),
+            "IABP/Cannula" = paste(sum(InfSite=="IABP/Cannula"), ' (', percent(sum(InfSite=="IABP/Cannula") / min(TotalCasesMontly)), ')', sep = ""),
+            "Septicaemia" = paste(sum(InfSite=="Septicaemia"), ' (', percent(sum(InfSite=="Septicaemia") / min(TotalCasesMontly)), ')', sep = ""),
+            "UTI" = paste(sum(InfSite=="UTI"), ' (', percent(sum(InfSite=="UTI") / min(TotalCasesMontly)), ')', sep = ""),
+            "Pneumonia" = paste(sum(InfSite=="Pneumonia/LRTI"), ' (', percent(sum(InfSite=="Pneumonia/LRTI") / min(TotalCasesMontly)), ')', sep = ""),
+            "MRSA" = paste(sum(InfSite=="MRSA"), ' (', percent(sum(InfSite=="MRSA") / min(TotalCasesMontly)), ')', sep = ""),
+            "Sterile Sternal Dehiscence" = paste(sum(InfSite=="Sterile Sternal Dehiscence"), ' (', percent(sum(InfSite=="Sterile Sternal Dehiscence") / min(TotalCasesMontly)), ')', sep = ""),
+            "Other" = paste(sum(InfSite=="Other"), ' (', percent(sum(InfSite=="Other") / min(TotalCasesMontly)), ')', sep = "")
+            ) %>%
+  rbind(list("Historical (Per Month)", "0.7%", "0.3%", "1.4%", "0.0%", "0.2%", "0.5%", "1.2%", "3.0%", "1.8%", "0.4%", "-"))
+
+
+
+# slide 19 ------------------------------------------
+# Infection Details
+
+slide19.data1 <- MM.Inf
+slide19.data1$AccessInfDepth[is.na(slide19.data1$AccessInfDepth)==T] = ""
+slide19.data1$Inf_SiteSpecify[is.na(slide19.data1$Inf_SiteSpecify)==T] = ""
+slide19.data1$DonorSiteDepth[is.na(slide19.data1$DonorSiteDepth)==T] = ""
+slide19.data1$Inf_Organism[is.na(slide19.data1$Inf_Organism)==T] = ""
+
+
+slide19.data1 %<>% 
+  arrange(Month) %>% 
+  mutate(InfSite = paste(InfSite, AccessInfDepth, DonorSiteDepth, Inf_SiteSpecify)) %>% 
+  select(`Patient Details`, Month, InfSite, Organism = Inf_Organism)
+
+
+
+# slide 20 ------------------------------------------
+# Atrial Fibrilation and Arrythmias
+
+slide20.data1 <- MM.Pres_Main %>%  
+  group_by(Month) %>% 
+  summarise(`New AF` = paste(sum(PO_AF, na.rm = T), ' (', percent(sum(PO_AF, na.rm = TRUE) / n()), ')', sep = ""),
+            `Temporary Pacing` = paste(sum(PO_TempPacing, na.rm = T), ' (', percent(sum(PO_TempPacing, na.rm = TRUE) / n()), ')', sep = ""),
+            `Cardioversion` = paste(sum(PO_DCCV, na.rm = T), ' (', percent(sum(PO_DCCV, na.rm = TRUE) / n()), ')', sep = ""),
+            `PPM Inserted` = paste(sum(PO_PPMforHB, na.rm = T)+sum(PO_PPMforBrady, na.rm = T), ' (', percent((sum(PO_PPMforHB, na.rm = T)+sum(PO_PPMforBrady, na.rm = T)) / n()), ')', sep = ""),
+            ) %>% 
+  rbind(list("Historical (Per Month)", "23.8%", "3.4%", "4.5%", "3.7%"))
 
 
 
 ##########################################################################################
-
-# Text for Slides -----------------------
-
-# Intro summary slide
-intro <- "Earlier this year we talked about how limited housing supply was helping to drive accelerating house prices across the country. In such an environment you would expect to see housing vacancies decline. Indeed, if you look at the rate of rental or homeowner vacancies you see a substantial reduction. But if we look a little closer at the housing inventory data something curious emerges."
 
 # Set captions --------------------------
 
@@ -589,8 +689,6 @@ myftr<-"RoryDenham R to PowerPoint"
 
 
 # Build the Deck ------------------------
-
-
 read_pptx("Powerpoint_Templates/ppt.pptx") %>%
   layout_summary()
 
