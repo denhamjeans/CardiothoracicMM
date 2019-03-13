@@ -689,23 +689,21 @@ myftr<-"RoryDenham R to PowerPoint"
 
 
 # Build the Deck ------------------------
-read_pptx("Powerpoint_Templates/ppt.pptx") %>%
+read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   layout_summary()
 
-read_pptx("Powerpoint_Templates/ppt.pptx") %>%
+read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   layout_properties(layout = "Content Only", master = "Office Theme")
 
-annotate_base(path = "Powerpoint_Templates/ppt.pptx", output_file = "annotated_layout_base_edit.pptx")
+annotate_base(path = "Powerpoint_Templates/piktochart.pptx", output_file = "annotated_layout_base_edit.pptx")
 
 
-doc <- read_pptx("Powerpoint_Templates/ppt.pptx") %>%
+doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Title Slide
   # image size needs fixing
   add_slide(layout="Title Slide", master="Office Theme") %>%
-  ph_with_text(type = "ctrTitle", str = "POWH Cardiac Surgery Data Review\n&\nMorbidity and Mortality") %>% 
+  ph_with_text(type = "ctrTitle", str = "Cardiac Surgery Data Review\n&\nMorbidity and Mortality") %>% 
   ph_with_text(type = "subTitle", str = captitle) %>% 
-  ph_with_img(type = "pic", index = 1, src = "images/POWH_final.png", height = 1.5, width = 1.5) %>%
-  ph_with_img(type = "pic", index = 2, src = "images/SESLHDlogo.png", height = 1.33, width = 5.09) %>%
   ph_with_text(type = "ftr", str = myftr) %>%
   
   # Slide 1 - Caseload:
@@ -744,8 +742,8 @@ doc <- read_pptx("Powerpoint_Templates/ppt.pptx") %>%
   # Slide 5 - Outpatient Wait Days:
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index = 1, str = "Outpatient Wait Days") %>% 
-  ph_with_gg(type = "body", index = 2, value = slide5.plot) %>%
-  ph_with_table(type = "body", index = 1, value = slide5.data) %>%
+  ph_with_gg(type = "body", index = 1, value = slide5.plot) %>%
+  ph_with_table(type = "body", index = 2, value = slide5.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "5" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
@@ -762,8 +760,8 @@ doc <- read_pptx("Powerpoint_Templates/ppt.pptx") %>%
   # Slide 7 - Inpatient Wait Days:
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index = 1, str = "Inpatient Wait Days") %>% 
-  ph_with_gg(type = "body", index = 2, value = slide7.plot) %>%
-  ph_with_table(type = "body", index = 1, value = slide7.data) %>%
+  ph_with_gg(type = "body", index = 1, value = slide7.plot) %>%
+  ph_with_table(type = "body", index = 2, value = slide7.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "7" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%    
@@ -780,8 +778,8 @@ doc <- read_pptx("Powerpoint_Templates/ppt.pptx") %>%
   # Slide 9 - ICU Stay (days):
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "ICU Stay (days)") %>% 
-  ph_with_gg(type = "body", index = 2, value = slide9.plot) %>%
-  ph_with_table(type = "body", index = 1, value = slide9.data) %>%
+  ph_with_gg(type = "body", index = 1, value = slide9.plot) %>%
+  ph_with_table(type = "body", index = 2, value = slide9.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "9" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
@@ -798,8 +796,8 @@ doc <- read_pptx("Powerpoint_Templates/ppt.pptx") %>%
   # Slide 11 - Post-OP LOS (days):
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Post-OP LOS (days)") %>% 
-  ph_with_gg(type = "body", index = 2, value = slide11.plot) %>%
-  ph_with_table(type = "body", index = 1, value = slide11.data) %>%
+  ph_with_gg(type = "body", index = 1, value = slide11.plot) %>%
+  ph_with_table(type = "body", index = 2, value = slide11.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "11" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
