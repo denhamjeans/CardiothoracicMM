@@ -190,7 +190,7 @@ slide4.data1 <- MM.Pres_Main %>%
 slide4.data2 <- MM.Pres_Main %>%
   group_by(Month) %>%
   filter(FU_Death30d == 1) %>%
-  select(Pt_LName, OpConsultantInitials, Month, Op_Age, Op_StatusPOW, EUROScoreLogistic, Death_DaysPO, FU_DeathCause1, FU_DeathNotes)
+  select(Pt_LName, OpConsultant, Month, Op_Age, Op_StatusPOW, EUROScoreLogistic, Death_DaysPO, FU_DeathCause1, FU_DeathNotes)
 
 if (dim(slide4.data2)[1] == 0) {
   slide4.data2[1,] <- NA
@@ -254,10 +254,9 @@ slide6.data1 <- MM.Pres_Main %>%
   mutate(Waitdays = OpDate - ConsultDate) %>% 
   group_by(Month) %>%
   summarise("Total Outpatient Cases" = n(),
-            ">90 Day Wait" = sum(Waitdays>90, na.rm = TRUE)) %>%
+            ">90 Day Wait" = paste(sum(Waitdays>90, na.rm = TRUE), ' (', percent(sum(Waitdays>90, na.rm = T)/n()), ')', sep = "")) %>% 
   arrange(Month) %>%
-  mutate("Percentage" = percent(`>90 Day Wait` / `Total Outpatient Cases`),
-         "Historical" = rep("9.7%", length(slide4.data1$Mortalities)))
+  mutate("Historical" = rep("9.7%", length(slide4.data1$Mortalities)))
 
 #Patients With >90 Days Wait
 slide6.data2 <- MM.Pres_Main %>%
@@ -326,10 +325,9 @@ slide8.data1 <- MM.Pres_Main %>%
   mutate(Waitdays = OpDate - ConsultDate) %>% 
   group_by(Month) %>%
   summarise("Total Inpatient Cases" = n(),
-            ">10 Day Wait" = sum(Waitdays>10, na.rm = TRUE)) %>%
+            ">10 Day Wait" = paste(sum(Waitdays>10, na.rm = T), ' (', percent(sum(Waitdays>10, na.rm = T)/n()), ')', sep = "")) %>%
   arrange(Month) %>%
-  mutate("Percentage" = percent(`>10 Day Wait` / `Total Inpatient Cases`),
-         "Historical" = rep("6.8%", length(slide4.data1$Mortalities)))
+  mutate("Historical" = rep("6.8%", length(slide4.data1$Mortalities)))
 
 #Patients With >10 Days Wait
 slide8.data2 <- MM.Pres_Main %>%
@@ -673,6 +671,26 @@ slide20.data1 <- MM.Pres_Main %>%
 
 
 
+# slide 21 ------------------------------------------
+# Neurological Events
+
+slide21.data1 <- MM.Pres_Main %>% 
+  group_by(Month) %>% 
+  summarise(`Stroke Permanent (>72 hrs)` = paste(sum(PO_Stroke, na.rm = T), ' (', percent(sum(PO_Stroke, na.rm = T) / n()), ')', sep = ""),
+            `Stroke Transient (<72 hrs)` = paste(sum(PO_TIA, na.rm = T), ' (', percent(sum(PO_TIA, na.rm = T) / n()), ')', sep = ""),
+            `Continuous Coma (>24 hrs)` = paste(sum(PO_COMA, na.rm = T), ' (', percent(sum(PO_COMA, na.rm = T) / n()), ')', sep = "")
+  ) %>% 
+  rbind(list("Historical (Per Month)", "0.6%", "0.5%", "0.1%"))
+
+slide21.data2 <- MM.Pres_Main %>% 
+  filter(PO_Stroke = 1 | PO_TIA = 1 | PO_COMA = 1) %>% 
+  select()
+
+# slide 21 ------------------------------------------
+# Neurological Events
+
+
+
 ##########################################################################################
 
 # Set captions --------------------------
@@ -750,7 +768,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
     
   # Slide 6 - Outpatient Wait > 90:
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index = 1, str = "Outpatient Wait > 90") %>%
+  ph_with_text(type = "title", index = 1, str = "Outpatient Wait > 90 Day") %>%
   ph_with_table(type = "body", index=1, value = slide6.data1) %>%
   ph_with_table(type = "body", index=2, value = slide6.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
@@ -855,7 +873,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_table(type = "body", index=2, value = slide17.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "17" ) %>%
-  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y"))
+  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
 
   # slide 18 - Infections
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
@@ -864,10 +882,10 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_table(type = "body", index=2, value = slide18.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "18" ) %>%
-  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y"))
+  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
 
   # slide 19 - Infection details
-  add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
+  add_slide(layout = "Content Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Infection details") %>% 
   ph_with_table(type = "body", index=2, value = slide19.data1) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
@@ -875,12 +893,12 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
     
   # slide 20 - Atrial Fibrillation & Arrhythmias
-  add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
+  add_slide(layout = "Content Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Atrial Fibrillation & Arrhythmias") %>% 
   ph_with_table(type = "body", index=2, value = slide20.data1) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "20" ) %>%
-  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y"))
+  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
   
   # slide 21 - Neurological Events
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
