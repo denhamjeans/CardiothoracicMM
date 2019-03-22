@@ -18,8 +18,18 @@ library(lubridate)
 library(scales)
 library(stringr)
 library(tibble)
+library(knitr)
+library(kableExtra)
 ```
 
+```{r Function_Setup}
+
+#simplifying Kable function calls
+my_kable <- function(dataframe) {
+kable(dataframe) %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+}
+```
 
 
 ```{r DataCleaning, echo = FALSE}
@@ -137,9 +147,7 @@ if(No.Months == 1) {                              #if one month is present withi
   slide1.data <- slide1.data[c(1, 2, 4, 6, 3, 5, 7)]
 }
 
-piv
-
-slide1.data
+slide1.data %>% my_kable()
 ```
 
 ```{r Slide2}
@@ -162,7 +170,7 @@ slide2.data <- MM.Pres_Main %>%
   #mutate("Percentage" = percent(.[[2]] / Total.Cases[['n']])) %>%   #add percentages needs fixing.
   #mutate("Percentage2" = percent(.[[3]] / Total.Cases[['n']])) 
 
-slide2.data
+slide2.data %>% my_kable()
 ```
 
 ```{r Slide3}
@@ -189,7 +197,7 @@ slide3.data <- slide3.data[, c("OpConsultant", "CABG","CABG/Other", "Valve", "Va
 
 slide3.data <- cbind(slide3.data, TOTAL = rowSums(slide3.data[2:length(slide3.data)], na.rm = TRUE))        #add totals
 
-slide3.data
+slide3.data %>%  my_kable()
 ```
 
 ```{r Slide4}
@@ -212,9 +220,9 @@ if (dim(slide4.data2)[1] == 0) {
   slide4.data2[1,] <- NA
 }
 
-slide4.data1
+slide4.data1 %>% my_kable()
 
-slide4.data2
+slide4.data2 %>% my_kable()
 ```
 
 ```{r Slide5}
@@ -290,8 +298,8 @@ slide6.data2 <- MM.Pres_Main %>%
   arrange(Month, desc(Waitdays)) %>%
   select(Pt_LName, OpConsultant, OpDescription, Month, Waitdays, "Pre-OP Comments" = PreOp_Comments)
 
-slide6.data1
-slide6.data2
+slide6.data1 %>% my_kable()
+slide6.data2 %>% my_kable()
 ```
 
 ```{r Slide7}
@@ -342,7 +350,7 @@ slide7.plot <- slide7.plot + labs(x = "", y = "Wait Period (Days)",
         legend.position = "bottom") +
   coord_flip() #flip the axes for readability
 
-slide7.data
+slide7.data %>% my_kable()
 slide7.plot
 ```
 
@@ -368,6 +376,9 @@ slide8.data2 <- MM.Pres_Main %>%
   filter(Waitdays > 10) %>%
   arrange(Month, desc(Waitdays)) %>%
   select(Pt_LName, OpConsultant, OpDescription, Month, Waitdays, "Pre-OP Comments" = PreOp_Comments)
+
+slide8.data1 %>% my_kable()
+slide8.data2 %>% my_kable()
 ```
 
 ```{r Slide9}
@@ -534,8 +545,8 @@ if(nrow(slide13.data2)==0){
   slide13.data2[1,] <- NA
 }
 
-slide13.data1
-slide13.data2
+slide13.data1 %>% my_kable()
+slide13.data2 %>% my_kable()
 ```
 
 ```{r Slide14}
@@ -594,6 +605,8 @@ slide14.data2 <- MM.Pres_Main %>%                #count operation categories by 
   group_by(Month) %>%
   filter(IABP_Indication != 0)
 
+slide14.data1 %>% my_kable()
+slide14.data2 %>% my_kable()
 ```
 
 ```{r Slide15}
@@ -612,10 +625,10 @@ slide15.data2 <- MM.Pres_Main %>%
 
 slide15.data1 <- slide15.data2 %>%  
   group_by(Month) %>% 
-  summarise(`Recieved Blood Product` = paste(sum(`Recieved_Bld_Prod`), ' (',percent(sum(`Recieved_Bld_Prod`)/n()),')', sep = ""),
-            `RBC > 4 Units` = paste(sum(`RBC > 4 U`), ' (', percent(sum(`RBC > 4 U`)/n()),')', sep = ""),
-            `RBC > 15 Units` = paste(sum(`RBC > 15 U`), ' (', percent(sum(`RBC > 15 U`)/n()), ')', sep = ""),
-            `Any Blood Prod > 15 Units` = paste(sum(`Any Blood Prod > 15 U`), ' (', percent(sum(`Any Blood Prod > 15 U`)/n()), ')', sep = "")) %>%
+  summarise(`Recieved Blood Product` = paste(sum(`Recieved_Bld_Prod`), ' (', round(sum(`Recieved_Bld_Prod`)/n()*100, 2),'%)', sep = ""),
+            `RBC > 4 Units` = paste(sum(`RBC > 4 U`), ' (', round(sum(`RBC > 4 U`)/n()*100, 2),'%)', sep = ""),
+            `RBC > 15 Units` = paste(sum(`RBC > 15 U`), '(', round(sum(`RBC > 15 U`)/n()*100, 2), '%)', sep = ""),
+            `Any Blood Prod > 15 Units` = paste(sum(`Any Blood Prod > 15 U`), ' (', round(sum(`Any Blood Prod > 15 U`)/n()*100, 2), '%)', sep = "")) %>%
   rbind(list("Historical (Per Month)", "(61.8%)", "(13.1%)", "(0.9%)", "(6.5%)"))
 
 slide15.data2 %<>% 
@@ -653,6 +666,9 @@ slide16.data3 <- MM.Pres_Main %>%
          "Post-OP Issues" = paste(if_else(PO_RTT == 1, "Return to Theatre", ""), sep = ", ")) %>% 
   select(`Return to ICU`, Month, `Post-OP Issues`)
   
+slide16.data1 %>% my_kable()
+slide16.data2 %>% my_kable()
+slide16.data3 %>% my_kable()
 ```
 
 ```{r Slide17}
@@ -667,6 +683,8 @@ slide17.data1 <- MM.Pres_Main %>%
 
 slide17.data2 <- MM.RTT
 
+slide17.data1 %>% my_kable()
+slide17.data2 %>% my_kable()
 ```
 
 ```{r Slide18}
@@ -694,8 +712,8 @@ slide18.data2 <- MM.Inf %>%
             ) %>%
   rbind(list("Historical (Per Month)", "0.7%", "0.3%", "1.4%", "0.0%", "0.2%", "0.5%", "1.2%", "3.0%", "1.8%", "0.4%", "-"))
 
-slide18.data1
-slide18.data2
+slide18.data1 %>% my_kable()
+slide18.data2 %>% my_kable()
 ```
 
 ```{r Slide19}
@@ -715,7 +733,7 @@ slide19.data1 %<>%
   mutate(InfSite = paste(InfSite, AccessInfDepth, DonorSiteDepth, Inf_SiteSpecify)) %>% 
   select(`Patient Details`, Month, InfSite, Organism = Inf_Organism)
 
-
+slide19.data1 %>% my_kable()
 ```
 
 ```{r Slide20}
@@ -732,6 +750,7 @@ slide20.data1 <- MM.Pres_Main %>%
             ) %>% 
   rbind(list("Historical (Per Month)", "23.8%", "3.4%", "4.5%", "3.7%"))
 
+slide20.data1 %>% my_kable()
 ```
 
 ```{r Slide21}
@@ -753,8 +772,8 @@ slide21.data2 <- MM.Pres_Main %>%
        "Post-OP Issues" = paste(if_else(PO_RTT == 1, "Return to Theatre", ""), sep = ", ")) %>% 
   select(Month, `Return to ICU`, OpDescription, PO_Comments)
 
-slide21.data1
-slide21.data2
+slide21.data1 %>% my_kable()
+slide21.data2 %>% my_kable()
 ```
 
 ```{r Slide22}
@@ -780,7 +799,7 @@ slide22.data1 <- MM.Pres_Main %>%
             `Multi-Organ Dysfunction` = paste(sum(PO_MODS, na.rm = T), ' (', percent(sum(PO_MODS, na.rm = T) / n()), ')', sep = "")
   )
 
-slide22.data1
+slide22.data1 %>% my_kable()
 ```
 
 ```{r Slide23}
@@ -794,6 +813,9 @@ slide23.data1 <- MM.Pres_Main %>%
   rbind(list("Historical (Per Month)", "3.1%"))
   
 slide23.data2 <- MM.ReAdm
+
+slide23.data1 %>% my_kable()
+slide23.data2 %>% my_kable()
 
 ```
 
