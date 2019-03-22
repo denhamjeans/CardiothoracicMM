@@ -96,7 +96,6 @@ if(No.Months == 1) {                              #if one month is present withi
   slide1.data <- MM.Pres_Main %>% 
     group_by(OpCategory, Month) %>%
     summarise(Count = n()) %>%
-    arrange(desc(Count)) %>%
     spread(Month, Count) %>%
     adorn_totals("row") %>%                         #add totals to the bottom of the count summary to give total cases per month
     mutate("Percentage" = percent(.[[2]] / Total.Cases[[1, 'n']])) #add percentages for each surgery category as a proportion of the total cases (1 month)
