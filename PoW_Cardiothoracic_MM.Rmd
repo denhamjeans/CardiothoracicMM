@@ -29,6 +29,12 @@ my_kable <- function(dataframe) {
 kable(dataframe) %>% 
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
 }
+
+#function for percentages
+percentage_func <- function(VectorToSum, percentagedenominator){
+  paste(sum(VectorToSum, na.rm = TRUE), " (", round(sum(VectorToSum, na.rm = TRUE)/percentagedenominator*100, 2), "%)", sep = "")
+}
+
 ```
 
 
@@ -151,15 +157,14 @@ slide1.data %>% my_kable()
 ```
 
 ```{r Slide2}
-
 # Slide 2 ------------------------------------------
 #Caseload historical comparison
 slide2.data <- MM.Pres_Main %>%
   group_by(Month) %>%
-  summarise("Elective Count" = sum(Op_StatusPOW == 1, na.rm = TRUE),
-            "Urgent Count" = sum(Op_StatusPOW == 2, na.rm = TRUE),
-            "Emergency Count" = sum(Op_StatusPOW == 3, na.rm = TRUE),
-            "Redo" = sum(Op_Incidence > 1, na.rm = TRUE), 
+  summarise("Elective Count" = percentage_func(Op_StatusPOW == 1, n()),
+            "Urgent Count" = percentage_func(Op_StatusPOW == 2, n()),
+            "Emergency Count" = percentage_func(Op_StatusPOW == 3, n()),
+            "Redo" = percentage_func(Op_Incidence > 1, n()), 
             "Mean Age" = mean(Op_Age, na.rm = TRUE), 
             "Median Age" = median(Op_Age, na.rm = TRUE),
             "Mean Logistic EUROSCORE" = mean(EUROScoreLogistic, na.rm = TRUE),
@@ -178,11 +183,17 @@ slide2.data %>% my_kable()
 # Slide 3 ------------------------------------------
 #Caseload by consultant
 
-slide3.data <- MM.Pres_Main %>%                #count operation categories by consultant
-  select(OpConsultant, OpCategory) %>%
+slide3.data <- MM.Pres_Main %>% 
+  group_by(OpConsultant) %>% 
+  mutate(Count_monthly = sum(!is.na(Pt_FName))) %>% 
+  select(OpConsultant, OpCategory, Count_monthly)
+
+slide3.data %<>%                #count operation categories by consultant
+  select(OpConsultant, OpCategory, Count_monthly) %>%
   group_by(OpConsultant, OpCategory) %>%
-  summarise(count = n()) %>%
+  summarise(count = percentage_func(n(), mean(Count_monthly, na.rm = T))) %>%
   spread(OpCategory, count) 
+
 
 fncols <- function(data, cname) {       #function adds op category full of NA if it is missing to create a fixed number of columns 
   add <-cname[!cname%in%names(data)]
@@ -195,7 +206,13 @@ slide3.data <- fncols(slide3.data, c("OpConsultant", "CABG","CABG/Other","CABG/V
 
 slide3.data <- slide3.data[, c("OpConsultant", "CABG","CABG/Other", "Valve", "Valve/Other", "CABG/Valve", "CABG/Valve/Other", "Other")] #order the columns
 
-slide3.data <- cbind(slide3.data, TOTAL = rowSums(slide3.data[2:length(slide3.data)], na.rm = TRUE))        #add totals
+
+slide3totals.data <- MM.Pres_Main %>%                 #count operation categories by consultant
+  select(OpConsultant, OpCategory) %>%
+  group_by(OpConsultant, OpCategory) %>%
+  summarise(count = n()) %>%
+  spread(OpCategory, count) 
+slide3.data <- cbind(slide3.data, TOTAL = rowSums(slide3totals.data[2:length(slide3totals.data)], na.rm = TRUE))        #add totals
 
 slide3.data %>%  my_kable()
 ```
@@ -207,9 +224,8 @@ slide3.data %>%  my_kable()
 
 slide4.data1 <- MM.Pres_Main %>% 
   group_by(Month) %>%
-  summarise(`Mortalities <= 30` = sum(FU_Death30d, na.rm = TRUE)) %>%
-  mutate("Percentage" = percent(.[[2]] / Total.Cases[['n']]),                #add count percentages
-         "Historical" = rep("1.5%"))       #add historical percentages
+  summarise(`Mortalities <= 30` = percentage_func(FU_Death30d, n())) %>%
+  mutate("Historical" = rep("1.5%"))       #add historical percentages
 
 slide4.data2 <- MM.Pres_Main %>%
   group_by(Month) %>%
@@ -286,7 +302,7 @@ slide6.data1 <- MM.Pres_Main %>%
   mutate(Waitdays = OpDate - ConsultDate) %>% 
   group_by(Month) %>%
   summarise("Total Outpatient Cases" = n(),
-            ">90 Day Wait" = paste(sum(Waitdays>90, na.rm = TRUE), ' (', percent(sum(Waitdays>90, na.rm = T)/n()), ')', sep = "")) %>% 
+            ">90 Day Wait" = percentage_func(Waitdays>90, n())) %>% 
   arrange(Month) %>%
   mutate("Historical" = rep("9.7%"))
 
@@ -297,6 +313,10 @@ slide6.data2 <- MM.Pres_Main %>%
   filter(Waitdays > 90) %>%
   arrange(Month, desc(Waitdays)) %>%
   select(Pt_LName, OpConsultant, OpDescription, Month, Waitdays, "Pre-OP Comments" = PreOp_Comments)
+
+if(nrow(slide6.data2)==0){
+  slide6.data2 %<>% rbind(rep(NA))
+}
 
 slide6.data1 %>% my_kable()
 slide6.data2 %>% my_kable()
@@ -311,7 +331,7 @@ slide6.data2 %>% my_kable()
 slide7.data <- MM.Pres_Main %>%
   filter(Adm_Elective == 0) %>%
   group_by(Month) %>%
-  mutate(waitdays = OpDate - ConsultDate) %>%
+  mutate(waitdays = OpDate - AdmDate) %>%
   select(Month, waitdays) %>%
   summarise(Mean = round(mean(waitdays, na.rm = TRUE), 1), Median = median(waitdays, na.rm = TRUE)) %>%
   rbind(list("Historical", 5.8, 4))
@@ -321,9 +341,9 @@ slide7.data <- MM.Pres_Main %>%
 #highlight max values for each of the waiting periods
 slide7.plotdata <- MM.Pres_Main %>%
   filter(Adm_Elective == 0) %>%
-  select(OpConsultant, Pt_LName, OpDate, ConsultDate) %>%
+  select(OpConsultant, Pt_LName, OpDate, AdmDate) %>%
   group_by(OpConsultant) %>%
-  mutate(Waitdays = as.numeric(OpDate - ConsultDate))
+  mutate(Waitdays = as.numeric(OpDate - AdmDate))
 
 #highlight cases of interest on the graph 
 slide7.plotdata.maxwait <- slide7.plotdata %>%
@@ -340,7 +360,7 @@ slide7.plot <- ggplot(slide7.plotdata, aes(Pt_LName, Waitdays)) +
   
 #Format plot labels and add layout changes
 slide7.plot <- slide7.plot + labs(x = "", y = "Wait Period (Days)", 
-                                  caption = "*Values calculated from Consult Date \n *Consult Date defined as 'First consult where patient is deemed suitable for surgery'") +
+                                  caption = "*Values calculated from Admission Date") +
   theme_minimal() +
   scale_linetype_manual(name = "", values = c(2, 1, 2), 
                         guide = guide_legend(override.aes = list(color = c("#009E73", "#000000", "#D55E00")))) +
@@ -442,11 +462,11 @@ slide10.data1 <- MM.Pres_Main %>%
   mutate(BedBlock = (ICUDays - ICUReqDays)) %>%
   select(Pt_LName, Pt_FName, Month, ICUReqDays, ICUDays, BedBlock) %>%
   filter(ICUReqDays > 0) %>%
-  summarise("LOS > 3 Days" = sum(ICUDays>3),
-            "Percentage" = percent(sum(ICUDays>3)/n()),
+  summarise("LOS > 3 Days" = percentage_func(ICUDays>3, n()),
             "Historical" = rep("6.8%"),
-            "Mean Bed Block Per Patient (Hours)" = mean(BedBlock, na.rm = TRUE)*24,
-            "Max Bed Block (Days)" = max(BedBlock, na.rm = TRUE)
+            "Mean Patient Bed Block (Hours)" = mean(BedBlock, na.rm = TRUE)*24,
+            "Median Patient Bed Block (Hours)" = median(BedBlock, na.rm = TRUE)*24,
+            "Max Patient Bed Block (Days)" = max(BedBlock, na.rm = TRUE)
             )
 
 #Patients With >90 Days Wait
@@ -511,8 +531,7 @@ slide11.plot <- slide11.plot +
 slide12.data1 <- MM.Pres_Main %>% 
   mutate("Post-OP LOS" = DischargeDate - OpDate) %>%
   group_by(Month) %>%
-  summarise("Count of Prolonged Stays (>10 Days)" = sum(`Post-OP LOS`>10),
-            "Percentage" = percent(sum(`Post-OP LOS`>10)/n()),
+  summarise("Count of Prolonged Stays (>10 Days)" = percentage_func(`Post-OP LOS`>10, n()),
             "Historical" = rep("26.1%"))
 
 #Patients With >10 Days Wait
