@@ -90,6 +90,7 @@ monthtotals <- MM.Pres_Main %>%
 MM.Inf %<>% group_by(`Patient Details`) %>% 
   mutate(TotalCasesMontly = if_else(Num_Months == 1, monthtotals[[1, 2]], monthtotals[[2, 2]]))
 
+
 # Determine how many dates selected ---------------
 First.Month <- min(MM.Pres_Main$Num_Months)
 Second.Month <- max(MM.Pres_Main$Num_Months)
@@ -118,7 +119,7 @@ if(No.Months == 1) {                              #if one month is present withi
     group_by(OpCategory, Month) %>%
     summarise(Count = n()) %>%
     arrange(desc(Month)) %>% 
-    spread(Month, Count, f) %>%
+    spread(Month, Count) %>%
     adorn_totals("row") %>%                         #add totals to the bottom of the count summary to give total cases per month
     mutate("Percentage" = percent(.[[2]] / Total.Cases[[1, 'n']])) #add percentages for each surgery category as a proportion of the total cases (1 month)
   
@@ -539,7 +540,7 @@ slide12.data2 <- MM.Pres_Main %>%
   mutate("Post-OP LOS" = DischargeDate - OpDate) %>%  
   filter(`Post-OP LOS` > 10) %>%
   arrange(Month, desc(`Post-OP LOS`)) %>%
-  select(Pt_LName, OpConsultant, OpCategory, Month, `Post-OP LOS`, "Pre-OP Comments" = PO_Comments)
+  select(Pt_LName, OpConsultant, OpCategory, Month, `Post-OP LOS`, "Post-OP Comments" = PO_Comments)
 ```
 
 ```{r Slide13}
@@ -644,10 +645,10 @@ slide15.data2 <- MM.Pres_Main %>%
 
 slide15.data1 <- slide15.data2 %>%  
   group_by(Month) %>% 
-  summarise(`Recieved Blood Product` = paste(sum(`Recieved_Bld_Prod`), ' (', round(sum(`Recieved_Bld_Prod`)/n()*100, 2),'%)', sep = ""),
-            `RBC > 4 Units` = paste(sum(`RBC > 4 U`), ' (', round(sum(`RBC > 4 U`)/n()*100, 2),'%)', sep = ""),
-            `RBC > 15 Units` = paste(sum(`RBC > 15 U`), '(', round(sum(`RBC > 15 U`)/n()*100, 2), '%)', sep = ""),
-            `Any Blood Prod > 15 Units` = paste(sum(`Any Blood Prod > 15 U`), ' (', round(sum(`Any Blood Prod > 15 U`)/n()*100, 2), '%)', sep = "")) %>%
+  summarise(`Recieved Blood Product` = paste(sum(`Recieved_Bld_Prod`, na.rm = T), ' (', round(sum(`Recieved_Bld_Prod`, na.rm = T)/n()*100, 2),'%)', sep = ""),
+            `RBC > 4 Units` = paste(sum(`RBC > 4 U`, na.rm = T), ' (', round(sum(`RBC > 4 U`, na.rm = T)/n()*100, 2),'%)', sep = ""),
+            `RBC > 15 Units` = paste(sum(`RBC > 15 U`, na.rm = T), '(', round(sum(`RBC > 15 U`, na.rm = T)/n()*100, 2), '%)', sep = ""),
+            `Any Blood Prod > 15 Units` = paste(sum(`Any Blood Prod > 15 U`, na.rm = T), ' (', round(sum(`Any Blood Prod > 15 U`, na.rm = T)/n()*100, 2), '%)', sep = "")) %>%
   rbind(list("Historical (Per Month)", "(61.8%)", "(13.1%)", "(0.9%)", "(6.5%)"))
 
 slide15.data2 %<>% 
@@ -656,7 +657,8 @@ slide15.data2 %<>%
   select(-one_of("OperationID", "Recieved_Bld_Prod", "RBC > 4 U", "RBC > 15 U", "Any Blood Prod > 15 U"))
 
 slide15.data2 <- slide15.data2[, 2:length(slide15.data2)]
-  
+
+slide15.data1 %>% my_kable()
 ```
 
 ```{r Slide16}
@@ -697,7 +699,7 @@ slide16.data3 %>% my_kable()
 
 slide17.data1 <- MM.Pres_Main %>% 
   group_by(Month) %>% 
-  summarise(`Return to Theatre` = paste(sum(PO_RTT, na.rm = T), ' (', percent(sum(PO_RTT, na.rm = T)/n()), ')', sep = "")) %>% 
+  summarise(`Return to Theatre (Total Patients)` = paste(sum(PO_RTT, na.rm = T), ' (', percent(sum(PO_RTT, na.rm = T)/n()), ')', sep = "")) %>% 
   rbind(list("Historical (Per Month)", "5.1%"))
 
 slide17.data2 <- MM.RTT
@@ -1080,7 +1082,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
 
   if(No.Months == 1){
     MM.filename <- paste(First.Month,"_", Year, "_M&M.pptx", sep = "")
-  } else if(No.Months == 2){
+  } else if(No.Months >= 2){
     MM.filename <- paste(First.Month,Second.Month,"_", Year, "_M&M.pptx", sep = "")
   }
 
