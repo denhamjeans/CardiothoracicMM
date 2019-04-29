@@ -638,13 +638,17 @@ slide14.data1$`Historical (per month)` <- (c("91.3%", "2.6%", "6.1%", "11.2%")) 
 if(No.Months == 2) {
   slide14.data1 %<>% mutate("Percentage" = percent(as.numeric(.[[2]]) / as.numeric(.[[4, 2]])),  #add percentages for each surgery category as a proportion of the total cases (2 months)
                             "Percentage2" = percent(as.numeric(.[[3]]) / as.numeric(.[[4, 3]])))
+
+  slide14.data1 <- slide14.data1[, c(1, 2, 5, 3, 6, 4)] #reorder the columns
 } 
 
 if(No.Months == 1) {
-  slide14.data1 %<>% mutate("Percentage" = percent(.[[2]] / Total.Cases[[1, length(.[2])]]))  #add percentages for each surgery category as a proportion of the total cases (1 months)
+  slide14.data1 %<>% mutate("Percentage" = percent(as.numeric(.[[2]]) / as.numeric(.[[4, 2]])))  #add percentages for each surgery category as a proportion of the total cases (1 months)
+  
+  slide14.data1 <- slide14.data1[, c(1, 2, 4, 3)]
 }  
 
-slide14.data1 <- slide14.data1[, c(1, 2, 5, 3, 6, 4)] #reorder the columns
+
 
 
 #patients with IABP insertions
@@ -741,25 +745,48 @@ slide17.data2 %>% my_kable()
 # slide 18 ------------------------------------------
 # Infections
 
-slide18.data1 <- MM.Inf %>% 
-  group_by(Month) %>% 
-  summarise(`Total Patients` = paste(n(), ' (', percent(n() / min(TotalCasesMonthly)), ')', sep = ""))
-
-slide18.data2 <- MM.Inf %>%
-  group_by(Month) %>%
-  summarise("Superficial Sternum" = paste(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Superficial", 1, 0)), ' (', percent(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Superficial", 1, 0)) / min(TotalCasesMonthly)), ')', sep = ""),
-            "Deep Sternum" = paste(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Deep", 1, 0)), ' (', percent(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Deep", 1, 0)) / min(TotalCasesMonthly)), ')', sep = ""),
-            "Leg" = paste(sum(InfSite=="Leg"), ' (', percent(sum(InfSite=="Leg") / min(TotalCasesMonthly)), ')', sep = ""),
-            "Radial" = paste(sum(InfSite=="Radial"), ' (', percent(sum(InfSite=="Radial") / min(TotalCasesMonthly)), ')', sep = ""),
-            "IABP/Cannula" = paste(sum(InfSite=="IABP/Cannula"), ' (', percent(sum(InfSite=="IABP/Cannula") / min(TotalCasesMonthly)), ')', sep = ""),
-            "Septicaemia" = paste(sum(InfSite=="Septicaemia"), ' (', percent(sum(InfSite=="Septicaemia") / min(TotalCasesMonthly)), ')', sep = ""),
-            "UTI" = paste(sum(InfSite=="UTI"), ' (', percent(sum(InfSite=="UTI") / min(TotalCasesMonthly)), ')', sep = ""),
-            "Pneumonia" = paste(sum(InfSite=="Pneumonia/LRTI"), ' (', percent(sum(InfSite=="Pneumonia/LRTI") / min(TotalCasesMonthly)), ')', sep = ""),
-            "MRSA" = paste(sum(InfSite=="MRSA"), ' (', percent(sum(InfSite=="MRSA") / min(TotalCasesMonthly)), ')', sep = ""),
-            "Sterile Sternal Dehiscence" = paste(sum(InfSite=="Sterile Sternal Dehiscence"), ' (', percent(sum(InfSite=="Sterile Sternal Dehiscence") / min(TotalCasesMonthly)), ')', sep = ""),
-            "Other" = paste(sum(InfSite=="Other"), ' (', percent(sum(InfSite=="Other") / min(TotalCasesMonthly)), ')', sep = "")
-            ) %>%
-  rbind(list("Historical (Per Month)", "0.7%", "0.3%", "1.4%", "0.0%", "0.2%", "0.5%", "1.2%", "3.0%", "1.8%", "0.4%", "-"))
+if (nrow(MM.Inf) != 0) {
+  slide18.data1 <- MM.Inf %>% 
+    group_by(Month) %>% 
+    summarise(`Total Patients` = paste(n(), ' (', percent(n() / min(TotalCasesMonthly)), ')', sep = "")) %>% 
+    rbind(list("Historical (Per Month)", rep("10.2%")))
+  
+  slide18.data2 <- MM.Inf %>%
+    group_by(Month) %>%
+    summarise("Superficial Sternum" = paste(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Superficial", 1, 0)), ' (', percent(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Superficial", 1, 0)) / min(TotalCasesMonthly)), ')', sep = ""),
+              "Deep Sternum" = paste(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Deep", 1, 0)), ' (', percent(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Deep", 1, 0)) / min(TotalCasesMonthly)), ')', sep = ""),
+              "Leg" = paste(sum(InfSite=="Leg"), ' (', percent(sum(InfSite=="Leg") / min(TotalCasesMonthly)), ')', sep = ""),
+              "Radial" = paste(sum(InfSite=="Radial"), ' (', percent(sum(InfSite=="Radial") / min(TotalCasesMonthly)), ')', sep = ""),
+              "IABP/Cannula" = paste(sum(InfSite=="IABP/Cannula"), ' (', percent(sum(InfSite=="IABP/Cannula") / min(TotalCasesMonthly)), ')', sep = ""),
+              "Septicaemia" = paste(sum(InfSite=="Septicaemia"), ' (', percent(sum(InfSite=="Septicaemia") / min(TotalCasesMonthly)), ')', sep = ""),
+              "UTI" = paste(sum(InfSite=="UTI"), ' (', percent(sum(InfSite=="UTI") / min(TotalCasesMonthly)), ')', sep = ""),
+              "Pneumonia" = paste(sum(InfSite=="Pneumonia/LRTI"), ' (', percent(sum(InfSite=="Pneumonia/LRTI") / min(TotalCasesMonthly)), ')', sep = ""),
+              "MRSA" = paste(sum(InfSite=="MRSA"), ' (', percent(sum(InfSite=="MRSA") / min(TotalCasesMonthly)), ')', sep = ""),
+              "Sterile Sternal Dehiscence" = paste(sum(InfSite=="Sterile Sternal Dehiscence"), ' (', percent(sum(InfSite=="Sterile Sternal Dehiscence") / min(TotalCasesMonthly)), ')', sep = ""),
+              "Other" = paste(sum(InfSite=="Other"), ' (', percent(sum(InfSite=="Other") / min(TotalCasesMonthly)), ')', sep = "")
+              ) %>%
+    rbind(list("Historical (Per Month)", "0.7%", "0.3%", "1.4%", "0.0%", "0.2%", "0.5%", "1.2%", "3.0%", "1.8%", "0.4%", "-"))
+} else {
+  slide18.data1 <- MM.Pres_Main %>% 
+    group_by(Month) %>% 
+    summarise(`Total Patients` = paste("0", ' (0%)', sep = "")) %>% 
+    rbind(list("Historical (Per Month)", rep("10.2%")))
+  
+  slide18.data2 <- MM.Pres_Main %>% 
+    group_by(Month) %>% 
+    summarise("Superficial Sternum" = 0,
+              "Deep Sternum" = 0,
+              "Leg" = 0,
+              "Radial" = 0,
+              "IABP/Cannula" = 0,
+              "Septicaemia" = 0,
+              "UTI" = 0,
+              "Pneumonia" = 0,
+              "MRSA" = 0,
+              "Sterile Sternal Dehiscence" = 0,
+              "Other" = 0) %>% 
+    rbind(list("Historical (Per Month)", "0.7%", "0.3%", "1.4%", "0.0%", "0.2%", "0.5%", "1.2%", "3.0%", "1.8%", "0.4%", "-"))
+  }
 
 slide18.data1 %>% my_kable()
 slide18.data2 %>% my_kable()
