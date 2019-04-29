@@ -4,6 +4,7 @@ author: "Rory Denham"
 date: "March 22, 2019
 ---
 
+
 ##Purpose
 
 This is an R Markdown file intended for the automation of monthly cardiac surgery data review reports as a part of morbidity and mortality (M&M) review at Prince of Wales hospital NSW. All input data is sourced directly from the local Cardiothoracic Surgery database at Prince of Wales.
@@ -67,15 +68,17 @@ percentage_func <- function(VectorToSum, percentagedenominator){
 
 #####
 #change this file accordingly >>>>D:/M&M_Query_Data/ "insert pathfile here"
-PathFile <- "M&M_Query_Data_Laura/Oct_Nov"
+
+#PathFile <- "D:M&M_Query_Data_Laura/Oct_Nov/"
+Pathfile <- "C:\\Users\\Break\\Desktop\\MM_Jan_2019_Data\\"
+
 #####
 
 #change to use readr package - require downloading the package first
-MM.CaseStudy <- read_csv(file = file.path("D:", PathFile, "qry_M&M_CaseStudy.csv"))
-MM.Inf <-       read_csv(file = file.path("D:", PathFile, "qry_MMPres_Inf.csv"))
-MM.Pres_Main <- read_csv(file = file.path("D:", PathFile, "qry_MMPres_Main.csv"))
-MM.ReAdm <-     read_csv(file = file.path("D:", PathFile, "qry_MMPres_ReAdm.csv"))
-MM.RTT <-       read_csv(file = file.path("D:", PathFile, "qry_MMPres_RTT.csv"))
+MM.Inf <-       read_csv(file = paste(Pathfile, "qry_MMPres_Inf.csv", sep = ""))
+MM.Pres_Main <- read_csv(file = paste(Pathfile, "qry_MMPres_Main.csv", sep = ""))
+MM.ReAdm <-     read_csv(file = paste(Pathfile, "qry_MMPres_ReAdm.csv", sep = ""))
+MM.RTT <-       read_csv(file = paste(Pathfile, "qry_MMPres_RTT.csv", sep = ""))
 
 #Data cleaning and wrangling ------------------
 
@@ -92,7 +95,6 @@ MM.Pres_Main$PO_ExtbDt <- as.Date(MM.Pres_Main$PO_ExtbDt, "%d/%m/%Y")
 MM.Pres_Main$PreOp_Comments <- as.character(MM.Pres_Main$PreOp_Comments)
 MM.Pres_Main$PO_Comments <- as.character(MM.Pres_Main$PO_Comments)
 
-MM.CaseStudy$OpDate <- as.Date(MM.CaseStudy$OpDate, "%d/%m/%Y")
 MM.Inf$OpDate <- as.Date(MM.Inf$OpDate, "%d/%m/%Y")
 
 #create date number variable
@@ -100,7 +102,7 @@ MM.Pres_Main$Num_Months <- month(MM.Pres_Main$OpDate) - month(min(MM.Pres_Main$O
 MM.Inf$Num_Months <- month(MM.Inf$OpDate) - month(min(MM.Inf$OpDate)) + 1
 
 #add month variable
-MM.Pres_Main %<>% mutate(Month = format(OpDate, "%B"))
+MM.Pres_Main %<>% mutate(Month = format(OpDate, "%B")) 
 MM.Inf %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE))
 MM.Pres_Main %<>% mutate(`PO_Vent>24hr` = if_else(PO_ICUAdmDt-PO_ExtbDt>=1, 1, 0))
 
@@ -111,9 +113,10 @@ monthtotals <- MM.Pres_Main %>%
   arrange(Month) %>% 
   select(Month, Total)
   
-MM.Inf %<>% group_by(`Patient Details`) %>% 
-  mutate(TotalCasesMontly = if_else(Num_Months == 1, monthtotals[[1, 2]], monthtotals[[2, 2]]))
-
+if(nrow(MM.Inf) != 0) {
+  MM.Inf %<>% group_by(`Patient Details`) %>% 
+    mutate(TotalCasesMonthly = if_else(Num_Months == 1, monthtotals[[1, 2]], monthtotals[[2, 2]]))
+}
 
 # Determine how many dates selected ---------------
 First.Month <- min(MM.Pres_Main$Num_Months)
@@ -147,6 +150,7 @@ if(No.Months == 1) {                              #if one month is present withi
     adorn_totals("row") %>%                         #add totals to the bottom of the count summary to give total cases per month
     mutate("Percentage" = percent(.[[2]] / Total.Cases[[1, 'n']])) #add percentages for each surgery category as a proportion of the total cases (1 month)
   
+  Unique.Category <- unique(slide1.data$OpCategory)
   for (i in seq_along(unique(slide1.data$OpCategory))) {        #loop is used to create a list of operations within each category which are present this month
     x <- MM.Pres_Main %>%                                 #if major OPcategories were not used to create the table in this fashion the table would be too large
       select(OpCategory, OpDescription) %>%
@@ -739,21 +743,21 @@ slide17.data2 %>% my_kable()
 
 slide18.data1 <- MM.Inf %>% 
   group_by(Month) %>% 
-  summarise(`Total Patients` = paste(n(), ' (', percent(n() / min(TotalCasesMontly)), ')', sep = ""))
+  summarise(`Total Patients` = paste(n(), ' (', percent(n() / min(TotalCasesMonthly)), ')', sep = ""))
 
 slide18.data2 <- MM.Inf %>%
   group_by(Month) %>%
-  summarise("Superficial Sternum" = paste(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Superficial", 1, 0)), ' (', percent(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Superficial", 1, 0)) / min(TotalCasesMontly)), ')', sep = ""),
-            "Deep Sternum" = paste(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Deep", 1, 0)), ' (', percent(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Deep", 1, 0)) / min(TotalCasesMontly)), ')', sep = ""),
-            "Leg" = paste(sum(InfSite=="Leg"), ' (', percent(sum(InfSite=="Leg") / min(TotalCasesMontly)), ')', sep = ""),
-            "Radial" = paste(sum(InfSite=="Radial"), ' (', percent(sum(InfSite=="Radial") / min(TotalCasesMontly)), ')', sep = ""),
-            "IABP/Cannula" = paste(sum(InfSite=="IABP/Cannula"), ' (', percent(sum(InfSite=="IABP/Cannula") / min(TotalCasesMontly)), ')', sep = ""),
-            "Septicaemia" = paste(sum(InfSite=="Septicaemia"), ' (', percent(sum(InfSite=="Septicaemia") / min(TotalCasesMontly)), ')', sep = ""),
-            "UTI" = paste(sum(InfSite=="UTI"), ' (', percent(sum(InfSite=="UTI") / min(TotalCasesMontly)), ')', sep = ""),
-            "Pneumonia" = paste(sum(InfSite=="Pneumonia/LRTI"), ' (', percent(sum(InfSite=="Pneumonia/LRTI") / min(TotalCasesMontly)), ')', sep = ""),
-            "MRSA" = paste(sum(InfSite=="MRSA"), ' (', percent(sum(InfSite=="MRSA") / min(TotalCasesMontly)), ')', sep = ""),
-            "Sterile Sternal Dehiscence" = paste(sum(InfSite=="Sterile Sternal Dehiscence"), ' (', percent(sum(InfSite=="Sterile Sternal Dehiscence") / min(TotalCasesMontly)), ')', sep = ""),
-            "Other" = paste(sum(InfSite=="Other"), ' (', percent(sum(InfSite=="Other") / min(TotalCasesMontly)), ')', sep = "")
+  summarise("Superficial Sternum" = paste(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Superficial", 1, 0)), ' (', percent(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Superficial", 1, 0)) / min(TotalCasesMonthly)), ')', sep = ""),
+            "Deep Sternum" = paste(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Deep", 1, 0)), ' (', percent(sum(if_else(InfSite=="Sternum" & AccessInfDepth=="Deep", 1, 0)) / min(TotalCasesMonthly)), ')', sep = ""),
+            "Leg" = paste(sum(InfSite=="Leg"), ' (', percent(sum(InfSite=="Leg") / min(TotalCasesMonthly)), ')', sep = ""),
+            "Radial" = paste(sum(InfSite=="Radial"), ' (', percent(sum(InfSite=="Radial") / min(TotalCasesMonthly)), ')', sep = ""),
+            "IABP/Cannula" = paste(sum(InfSite=="IABP/Cannula"), ' (', percent(sum(InfSite=="IABP/Cannula") / min(TotalCasesMonthly)), ')', sep = ""),
+            "Septicaemia" = paste(sum(InfSite=="Septicaemia"), ' (', percent(sum(InfSite=="Septicaemia") / min(TotalCasesMonthly)), ')', sep = ""),
+            "UTI" = paste(sum(InfSite=="UTI"), ' (', percent(sum(InfSite=="UTI") / min(TotalCasesMonthly)), ')', sep = ""),
+            "Pneumonia" = paste(sum(InfSite=="Pneumonia/LRTI"), ' (', percent(sum(InfSite=="Pneumonia/LRTI") / min(TotalCasesMonthly)), ')', sep = ""),
+            "MRSA" = paste(sum(InfSite=="MRSA"), ' (', percent(sum(InfSite=="MRSA") / min(TotalCasesMonthly)), ')', sep = ""),
+            "Sterile Sternal Dehiscence" = paste(sum(InfSite=="Sterile Sternal Dehiscence"), ' (', percent(sum(InfSite=="Sterile Sternal Dehiscence") / min(TotalCasesMonthly)), ')', sep = ""),
+            "Other" = paste(sum(InfSite=="Other"), ' (', percent(sum(InfSite=="Other") / min(TotalCasesMonthly)), ')', sep = "")
             ) %>%
   rbind(list("Historical (Per Month)", "0.7%", "0.3%", "1.4%", "0.0%", "0.2%", "0.5%", "1.2%", "3.0%", "1.8%", "0.4%", "-"))
 
