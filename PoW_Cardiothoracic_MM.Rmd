@@ -873,7 +873,23 @@ slide22.data1 <- MM.Pres_Main %>%
             `GIT Complictaion` = paste(sum(PO_GITCompl, na.rm = T), ' (', percent(sum(PO_GITCompl, na.rm = T) / n()), ') ', str_c(str_replace_na(PO_GITType[!is.na(PO_GITType)]), collapse = ", "), sep = ""),
             `Cardiogenic Shock` = paste(sum(PO_CardioShock, na.rm = T), ' (', percent(sum(PO_CardioShock, na.rm = T) / n()), ')', sep = ""),
             `Multi-Organ Dysfunction` = paste(sum(PO_MODS, na.rm = T), ' (', percent(sum(PO_MODS, na.rm = T) / n()), ')', sep = "")
-  )
+  ) %>% 
+  rbind(list("Historical (Per Month)",
+             "",
+             "13.2%",
+             "2.7%",
+             "9.7%",
+             "",
+             "2.4%",
+             "1.1%",
+             "",
+             "0.4%",
+             "0.04%",
+             "0.4%",
+             "1.1%",
+             "1.0%",
+             "1.5%",
+             "1.1%"))
 
 slide22.data1 %>% my_kable()
 ```
