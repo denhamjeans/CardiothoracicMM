@@ -63,7 +63,7 @@ percentage_func <- function(VectorToSum, percentagedenominator){
 ```
 
 
-```{r DataCleaning, echo = FALSE, warning = FALSE, message = FALSE, results = 'hide'}
+```{r DataCleaning, echo = FALSE, message = FALSE, results = 'hide'}
 #Load Data -----------------------------
 
 #####
@@ -92,19 +92,31 @@ MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, "%d/%m/%Y")
 MM.Pres_Main$PO_ICUAdmDt <- as.Date(MM.Pres_Main$PO_ICUAdmDt, "%d/%m/%Y")
 MM.Pres_Main$PO_ICUOutDt <- as.Date(MM.Pres_Main$PO_ICUOutDt, "%d/%m/%Y")
 MM.Pres_Main$PO_ExtbDt <- as.Date(MM.Pres_Main$PO_ExtbDt, "%d/%m/%Y")
-
 MM.Pres_Main$PreOp_Comments <- as.character(MM.Pres_Main$PreOp_Comments)
 MM.Pres_Main$PO_Comments <- as.character(MM.Pres_Main$PO_Comments)
 
+
+MM.Pres_Main$OpCategory <- factor(MM.Pres_Main$OpCategory, levels = (c("CABG",
+                                                                       "CABG/Other",
+                                                                       "Valve",
+                                                                       "Valve/Other",
+                                                                       "CABG/Valve",
+                                                                       "CABG/Valve/Other",
+                                                                       "Other")))
+
+
 MM.Inf$OpDate <- as.Date(MM.Inf$OpDate, "%d/%m/%Y")
+MM.ReAdm$OpDate <- format(as.Date(MM.ReAdm$OpDate, "%d/%m/%Y"), "%d/%m/%Y")
+MM.RTT$OpDate <- as.Date(MM.RTT$OpDate, "%d/%m/%Y")
 
 #create date number variable
 MM.Pres_Main$Num_Months <- month(MM.Pres_Main$OpDate) - month(min(MM.Pres_Main$OpDate)) + 1
 MM.Inf$Num_Months <- month(MM.Inf$OpDate) - month(min(MM.Inf$OpDate)) + 1
 
 #add month variable
-MM.Pres_Main %<>% mutate(Month = format(OpDate, "%B")) 
-MM.Inf %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE))
+MM.Pres_Main %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE))
+MM.Inf %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE)) 
+
 MM.Pres_Main %<>% mutate(`PO_Vent>24hr` = if_else(PO_ICUAdmDt-PO_ExtbDt>=1, 1, 0))
 
 #add the total caseload (per month) to inf table
@@ -113,7 +125,7 @@ monthtotals <- MM.Pres_Main %>%
   summarise(Total = n()) %>% 
   arrange(Month) %>% 
   select(Month, Total)
-  
+
 if(nrow(MM.Inf) != 0) {
   MM.Inf %<>% group_by(`Patient Details`) %>% 
     mutate(TotalCasesMonthly = if_else(Num_Months == 1, monthtotals[[1, 2]], monthtotals[[2, 2]]))
@@ -145,8 +157,7 @@ Total.Cases <- MM.Pres_Main %>%
 if(No.Months == 1) {                              #if one month is present within M&M dataset create counts for each surgery type
   slide1.data <- MM.Pres_Main %>% 
     group_by(OpCategory, Month) %>%
-    summarise(Count = n()) %>%
-    arrange(desc(Month)) %>% 
+    summarise(Count = n()) %>% 
     spread(Month, Count) %>%
     adorn_totals("row") %>%                         #add totals to the bottom of the count summary to give total cases per month
     mutate("Percentage" = percent(.[[2]] / Total.Cases[[1, 'n']])) #add percentages for each surgery category as a proportion of the total cases (1 month)
@@ -184,6 +195,25 @@ if(No.Months == 1) {                              #if one month is present withi
 }
 
 slide1.data %>% my_kable()
+
+slide1.plotdata <- MM.Pres_Main %>% 
+  group_by(OpCategory, Month) %>%
+  summarise(Count = n())
+
+slide1.plotdata %<>% 
+  mutate(Percentage = Count/sum(slide1.plotdata$Count)*100, 1) %>% 
+  mutate(Percentage_Count = paste(Count, " - ", round(Count/sum(slide1.plotdata$Count)*100, 1), "%"))  
+
+slide1.plot <- ggplot(data = slide1.plotdata, aes(fill = OpCategory, x = Month, y = Percentage)) +
+  geom_bar(stat = 'identity') +
+  theme_minimal() +
+  theme(axis.title.x = element_blank()) +
+  labs(y = "Percentage (%)")
+
+#http://t-redactyl.io/blog/2016/01/creating-plots-in-r-using-ggplot2-part-4-stacked-bar-plots.html
+#add text to the columns describing the percentages then probably remove the y axis
+
+slide1.plot
 ```
 
 ```{r Slide2}
@@ -199,7 +229,22 @@ slide2.data <- MM.Pres_Main %>%
             "Median Age" = median(Op_Age, na.rm = TRUE),
             "Mean Logistic EUROSCORE" = mean(EUROScoreLogistic, na.rm = TRUE),
             "Median Logistic EUROSCORE" = median(EUROScoreLogistic, na.rm = TRUE)
-            )
+            ) %>% 
+    rbind(list("Historical (Per Month)",
+             "13.2%",
+             "2.7%",
+             "9.7%",
+             "",
+             "2.4%",
+             "1.1%",
+             "",
+             "0.4%",
+             "0.04%",
+             "0.4%",
+             "1.1%",
+             "1.0%",
+             "1.5%",
+             "1.1%"))
   
   #t() %>% #transpose the dataframe. Needs fixing.
   #mutate("Percentage" = percent(.[[2]] / Total.Cases[['n']])) %>%   #add percentages needs fixing.
@@ -244,7 +289,7 @@ slide3totals.data <- MM.Pres_Main %>%                 #count operation categorie
   spread(OpCategory, count) 
 slide3.data <- cbind(slide3.data, TOTAL = rowSums(slide3totals.data[2:length(slide3totals.data)], na.rm = TRUE))        #add totals
 
-slide3.data %>%  my_kable()
+slide3.data <- slide3.data %>% my_kable()
 ```
 
 ```{r Slide4}
@@ -499,10 +544,11 @@ ggplot(MM.Pres_Main, aes(y = Pt_LName)) +
   theme_bw() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
-        panel.grid.major.y = element_blank()
-        ) +
+        panel.grid.major.y = element_blank(),
+        legend()) +
   scale_x_date(date_breaks = "3 days", labels = date_format("%d\n%b"), date_minor_breaks = "1 day") +
-  scale_y_discrete(breaks=MM.Pres_Main$Pt_Lname, labels = MM.Pres_Main$Pt_Lname)
+  scale_y_discrete(breaks=MM.Pres_Main$Pt_Lname, labels = MM.Pres_Main$Pt_Lname) +
+  labs(caption = "*x-axis major ticks =  3 day intervals \n *x-axis minor ticks = 1 day intervals")
 ```
 
 
@@ -927,14 +973,12 @@ slide22.data1 %>% my_kable()
 
 slide23.data1 <- MM.Pres_Main %>%
   group_by(Month) %>% 
-  summarise(`Readmitted <= 30 Days` = paste(sum(FU_ReAdm30d, na.rm = T), ' (', percent(sum(FU_ReAdm30d, na.rm = T)/n()), ')', sep = "")) %>% 
+  summarise(`Readmitted <= 30 Days` = paste(sum(FU_ReAdm30d, na.rm = T), ' (', percent(sum(FU_ReAdm30d, na.rm = T)/n(), accuracy = 0.1), ')', sep = "")) %>% 
   rbind(list("Historical (Per Month)", "3.1%"))
   
 slide23.data2 <- MM.ReAdm
 
-slide23.data1 %>% my_kable()
 slide23.data2 %>% my_kable()
-
 ```
 
 
