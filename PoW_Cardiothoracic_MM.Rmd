@@ -91,6 +91,7 @@ MM.Pres_Main$OpDate <- as.Date(MM.Pres_Main$OpDate, "%d/%m/%Y")
 MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, "%d/%m/%Y")
 MM.Pres_Main$PO_ICUAdmDt <- as.Date(MM.Pres_Main$PO_ICUAdmDt, "%d/%m/%Y")
 MM.Pres_Main$PO_ICUOutDt <- as.Date(MM.Pres_Main$PO_ICUOutDt, "%d/%m/%Y")
+MM.Pres_Main$PO_RFWDt <- as.Date(MM.Pres_Main$PO_RFWDt, "%d/%m/%Y")
 MM.Pres_Main$PO_ExtbDt <- as.Date(MM.Pres_Main$PO_ExtbDt, "%d/%m/%Y")
 MM.Pres_Main$PreOp_Comments <- as.character(MM.Pres_Main$PreOp_Comments)
 MM.Pres_Main$PO_Comments <- as.character(MM.Pres_Main$PO_Comments)
@@ -528,27 +529,51 @@ slide9.plot
 ```
 
 ```{r ICU Timeintervals}
-MM.Pres_Main[MM.Pres_Main$Pt_LName == 'NEAL, H',"DischargeDate"] = as.Date('2019-02-07')
-MM.Pres_Main[MM.Pres_Main$Pt_LName == 'LOVETT, S',"AdmDate"] = as.Date('2019-01-01')
+IcuTimelineData <- MM.Pres_Main
 
 
-MM.Pres_Main$Pt_LName <- factor(MM.Pres_Main$Pt_LName, levels = (MM.Pres_Main$Pt_LName[order(MM.Pres_Main$OpDate)]))
-MM.Pres_Main$Pt_LName
+IcuTimelineData[IcuTimelineData$Pt_LName == 'NEAL, H',"DischargeDate"] = as.Date('2019-02-07')
+IcuTimelineData[IcuTimelineData$Pt_LName == 'LOVETT, S',"AdmDate"] = as.Date('2019-01-01')
 
-ggplot(MM.Pres_Main, aes(y = Pt_LName)) +
-  geom_segment(aes(x = AdmDate, xend = DischargeDate, y = Pt_LName, yend = Pt_LName)) +
-  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_ICUOutDt, y = Pt_LName, yend = Pt_LName), size = 5, colour = "#D16103") +
-  geom_segment(aes(x = OpDate, xend = OpDate + 0.5, y = Pt_LName, yend = Pt_LName), size = 5, colour = "#4E84C4") +
-  geom_segment(aes(x = AdmDate, xend = AdmDate+0.1, y = Pt_LName, yend = Pt_LName), size = 5) +
+IcuTimelineData %<>% mutate(Pt_LName = paste(OpDescription, " (", AdmConsultantInitials, ") ", Pt_LName))
+
+IcuTimelineData$Pt_LName <- factor(IcuTimelineData$Pt_LName, levels = (IcuTimelineData$Pt_LName[order(IcuTimelineData$OpDate)]))
+
+
+
+#weekend highlight function
+# test <- data.frame(DATE=seq(from = min(IcuTimelineData$AdmDate),
+#                             to = max(IcuTimelineData$DischargeDate),
+#                             by = "day"))
+# 
+# test$weekend <- weekdays(test$DATE) %in% c("Saturday", "Sunday")
+# test %<>% filter(weekend == T)
+# 
+#   geom_segment(data = test, aes(x=DATE, xend = DATE+2, y = -Inf, yend = Inf), fill="yellow") +
+
+ggplot(IcuTimelineData, aes(y = Pt_LName)) +
+  geom_segment(aes(x = AdmDate, xend = DischargeDate, y = Pt_LName, yend = Pt_LName, fill = "Admission Duration")) +
+  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_ICUOutDt, y = Pt_LName, yend = Pt_LName), size = 5, colour = "#D10202") +
+  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_RFWDt, y = Pt_LName, yend = Pt_LName), size = 5, colour = "#D16103") +
+  geom_segment(aes(x = OpDate, xend = OpDate + 0.5, y = Pt_LName, yend = Pt_LName, colour = "Operation"), size = 5) +
+  geom_segment(aes(x = AdmDate, xend = AdmDate+0.1, y = Pt_LName, yend = Pt_LName), size = 5, show.legend = TRUE) +
   geom_segment(aes(x = DischargeDate, xend =DischargeDate+0.1, y = Pt_LName, yend = Pt_LName), size = 5) +
   theme_bw() +
-  theme(axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
         panel.grid.major.y = element_blank(),
-        legend()) +
+        legend.position = "bottom", 
+        legend.title = element_blank()) +
   scale_x_date(date_breaks = "3 days", labels = date_format("%d\n%b"), date_minor_breaks = "1 day") +
-  scale_y_discrete(breaks=MM.Pres_Main$Pt_Lname, labels = MM.Pres_Main$Pt_Lname) +
+  scale_colour_manual(values = c(Operation = "#4E84C4", "Admission Duration" = "#000000")) +
   labs(caption = "*x-axis major ticks =  3 day intervals \n *x-axis minor ticks = 1 day intervals")
+
+
+#add consultant and patient names or highlight with colour coding
+#add weekends in gray background
+#add infection dates
+#highlight deaths
+#show bed block as darker red for the ICU segments
 ```
 
 
