@@ -201,19 +201,32 @@ slide1.plotdata <- MM.Pres_Main %>%
   group_by(OpCategory, Month) %>%
   summarise(Count = n())
 
+slide1.sum <- sum(slide1.plotdata$Count)
+
 slide1.plotdata %<>% 
-  mutate(Percentage = Count/sum(slide1.plotdata$Count)*100, 1) %>% 
-  mutate(Percentage_Count = paste(Count, " - ", round(Count/sum(slide1.plotdata$Count)*100, 1), "%"))  
+  mutate(Percentage = Count/slide1.sum*100) %>% 
+  mutate(Percentage_Count = paste(OpCategory,
+                                  " - ", 
+                                  Count,
+                                  " (",
+                                  round(Count/sum(slide1.plotdata$Count)*100, 1),
+                                  "%)",
+                                  sep = ""))
 
 slide1.plot <- ggplot(data = slide1.plotdata, aes(fill = OpCategory, x = Month, y = Percentage)) +
   geom_bar(stat = 'identity') +
+  geom_text(aes(label = `Percentage_Count`), size = 5, hjust = 0.5, vjust = 2, position = "stack") +
   theme_minimal() +
-  theme(axis.title.x = element_blank()) +
-  labs(y = "Percentage (%)")
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
 
 #http://t-redactyl.io/blog/2016/01/creating-plots-in-r-using-ggplot2-part-4-stacked-bar-plots.html
 #add text to the columns describing the percentages then probably remove the y axis
 
+slide1.plotdata
 slide1.plot
 ```
 
@@ -487,39 +500,61 @@ slide8.data2 %>% my_kable()
 slide9.data <- MM.Pres_Main %>%
   group_by(Month) %>%
   select(Month, ICUDays, ICUReqDays) %>%
-  summarise(Mean = round(mean(ICUDays, na.rm = TRUE), 1), Median = round(median(ICUDays, na.rm = TRUE), 1)) %>%
+  summarise(Mean = round(mean(ICUDays, na.rm = TRUE), 1), Median = round(median(ICUDays, na.rm = TRUE), 1))
+
+slide9.data$Month <- as.character(slide9.data$Month)
+slide9.data <- slide9.data %>% 
   rbind(list("Historical", 2.7, 1.9))
 
 
-###Variable setup for graphing
-#fundamental plotting data
-slide9.plotdata <- MM.Pres_Main %>%
-  select(Pt_LName, OpConsultant, Month, ICUDays, ICUReqDays) %>%
-  arrange(Month, OpConsultant)
 
 #ICU bedblock data
 ICUbedblock <- MM.Pres_Main %>%
   mutate(BedBlock = (ICUDays - ICUReqDays)) %>%
   select(Pt_LName, Pt_FName, ICUReqDays, ICUDays, BedBlock) %>%
-  filter(ICUReqDays > 0) %>%
-  summarise(BedBlockaverageperpatient = mean(BedBlock, na.rm = TRUE),
+  filter(BedBlock > 2) %>%
+  summarise(`Number of Patients with BedBlock > 2 hours` = sum(!is.na(BedBlock)),
+            `BedBlock Mean (per patient)` = round(mean(BedBlock, na.rm = TRUE),digits = 1),
+            `Bedblock Median (per patient)` = round(median(BedBlock, na.rm = TRUE)),
             maxbedblock = max(BedBlock, na.rm = TRUE)
             )
 
+###Variable setup for graphing
+#fundamental plotting data
+slide9.plotdata <- MM.Pres_Main %>%
+  select(Pt_LName, OpConsultant, Month, ICUDays, ICUReqDays, OpDescription, AdmConsultantInitials) %>%
+  arrange(Month, OpConsultant)
+
+slide9.plotdata %<>% 
+  mutate(Pt_LName = paste(OpDescription, " (", AdmConsultantInitials, ") ", Pt_LName)) %>% 
+  mutate(BedBlock = (ICUDays - ICUReqDays)) %>% 
+  mutate(`ICUDays label` = ddays(ICUDays))          #ddays lubridate function converts to a duration data type which displays duration in appropriate format in brackets. Here i just need to take the bracket section
+
+slide9.plotdata$`ICUDays label` <- as.character(slide9.plotdata$`ICUDays label`) 
+slide9.plotdata$`ICUDays label` <- gsub("^.*s ", "", slide9.plotdata$`ICUDays label`)
+
+
+
+slide9.plotdata$Pt_LName <- factor(slide9.plotdata$Pt_LName, levels = (slide9.plotdata$Pt_LName[order(slide9.plotdata$ICUDays)]))
+
+
 #Create plot from the data
 slide9.plot <- ggplot(slide9.plotdata, aes(Pt_LName, ICUDays)) + 
-  geom_col() +
+  geom_col(fill = "#D10202") +
+  geom_col(aes(y = ICUReqDays), fill = "#D16103") +
   facet_wrap(~Month, scales = "free_y") +
   geom_hline(aes(yintercept= 3, linetype = "3 Days"), colour="#009E73", size = 1) +     #3 day ICU Stay
   geom_hline(aes(yintercept= slide9.data[[dim(slide9.data)[1], 2]], linetype = "Historical Average"), colour="#D55E00", size = 1) +  #historical mean inpatient wait time
-  geom_hline(aes(yintercept= mean(slide9.plotdata[["ICUDays"]], na.rm = TRUE), linetype = "Group Average"), colour="#000000", size = 1) + #group average
-  geom_hline(aes(yintercept= ICUbedblock[["BedBlockaverageperpatient"]], linetype = "Average Bed Block Per Patient"), colour="#0072B2", size = 1) #average bedblock
+  geom_hline(aes(yintercept= mean(slide9.plotdata[["ICUDays"]], na.rm = TRUE), linetype = "Group Average"), colour="#000000", size = 1) #group average
   
 #Format plot labels and add layout changes
 slide9.plot <- slide9.plot + labs(x = "", y = "ICU Length of Stay (Days)") +
   theme_minimal() +
-  scale_linetype_manual(name = "", values = c(2, 1, 2, 2), 
-                        guide = guide_legend(override.aes = list(color = c("#009E73", "#000000", "#D55E00", "#0072B2")))) +
+  scale_linetype_manual(name = "", values = c(2, 1, 2), 
+                        guide = guide_legend(override.aes = list(color = c("#009E73", "#000000", "#D55E00")))) +
+  geom_text(aes(label = `ICUDays label`), position=position_dodge(width=0.5), hjust=-0.05) +
+  scale_y_continuous(limits = c(0, max(slide9.plotdata[["ICUDays"]], na.rm = T) + 1.5)) +
+  # geom_text(aes()) +
   theme(panel.grid.minor = element_blank(),
         panel.grid.major.y = element_blank(),
         axis.line = element_line(colour = "black"),
@@ -539,7 +574,11 @@ IcuTimelineData %<>% mutate(Pt_LName = paste(OpDescription, " (", AdmConsultantI
 
 IcuTimelineData$Pt_LName <- factor(IcuTimelineData$Pt_LName, levels = (IcuTimelineData$Pt_LName[order(IcuTimelineData$OpDate)]))
 
+Min.Date <- min(MM.Pres_Main$AdmDate, na.rm = T)
+Max.Date <- max(MM.Pres_Main$DischargeDate, na.rm = T)
 
+weekenddates <- seq(as.Date(Min.Date),as.Date(Max.Date),by = 1)
+weekenddates <- weekenddates[weekdays(weekenddates) %in% c('Saturday','Sunday')]
 
 #weekend highlight function
 # test <- data.frame(DATE=seq(from = min(IcuTimelineData$AdmDate),
@@ -552,23 +591,29 @@ IcuTimelineData$Pt_LName <- factor(IcuTimelineData$Pt_LName, levels = (IcuTimeli
 #   geom_segment(data = test, aes(x=DATE, xend = DATE+2, y = -Inf, yend = Inf), fill="yellow") +
 
 ggplot(IcuTimelineData, aes(y = Pt_LName)) +
-  geom_segment(aes(x = AdmDate, xend = DischargeDate, y = Pt_LName, yend = Pt_LName, fill = "Admission Duration")) +
-  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_ICUOutDt, y = Pt_LName, yend = Pt_LName), size = 5, colour = "#D10202") +
-  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_RFWDt, y = Pt_LName, yend = Pt_LName), size = 5, colour = "#D16103") +
-  geom_segment(aes(x = OpDate, xend = OpDate + 0.5, y = Pt_LName, yend = Pt_LName, colour = "Operation"), size = 5) +
-  geom_segment(aes(x = AdmDate, xend = AdmDate+0.1, y = Pt_LName, yend = Pt_LName), size = 5, show.legend = TRUE) +
+  # geom_hline(aes(yintercept = Pt_LName, colour = OpConsultant)) +
+  geom_vline(xintercept = weekenddates, alpha =0.2, size = 5) +
+  geom_segment(aes(x = AdmDate, xend = DischargeDate, y = Pt_LName, yend = Pt_LName, linetype = "Total Stay"), colour = "#000000") + #total stay duration (black)
+  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_ICUOutDt, y = Pt_LName, yend = Pt_LName, linetype = "ICU Bed Block Duration"), size = 5, colour = "#D10202") + #total ICU stay - effectively displays bed block (red)
+  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_RFWDt, y = Pt_LName, yend = Pt_LName, linetype='ICU Stay (Ready for Discharge)'), size = 5, colour = "#D16103") + #ICU stay until ready for discharge(orange)
+  geom_segment(aes(x = OpDate, xend = OpDate + 0.5, y = Pt_LName, yend = Pt_LName, linetype = "Operation"), colour = "#4E84C4", size = 5) + 
+  geom_segment(aes(x = AdmDate, xend = AdmDate + 0.1, y = Pt_LName, yend = Pt_LName), size = 5, show.legend = TRUE) +
   geom_segment(aes(x = DischargeDate, xend =DischargeDate+0.1, y = Pt_LName, yend = Pt_LName), size = 5) +
-  theme_bw() +
+  scale_x_date(date_breaks = "3 days", labels = date_format("%d\n%b"), date_minor_breaks = "1 day") +
+  scale_linetype_manual(name = "", values = c(1, 1, 1, 1), 
+                        guide = guide_legend(override.aes = list(color = c("#D10202", "#D16103", "#4E84C4", "#000000")))) +
+  facet_wrap(~Month, scales = "free_y") +
+  labs(caption = "*x-axis major ticks =  3 day intervals \n *x-axis minor ticks = 1 day intervals \n *Weekends highlighted in grey") +
+  theme_minimal() +
   theme(axis.title.y = element_blank(),
         axis.title.x = element_blank(),
+        axis.line = element_line(colour = "#000000", size = 1, linetype = "solid"),
         panel.grid.major.y = element_blank(),
         legend.position = "bottom", 
-        legend.title = element_blank()) +
-  scale_x_date(date_breaks = "3 days", labels = date_format("%d\n%b"), date_minor_breaks = "1 day") +
-  scale_colour_manual(values = c(Operation = "#4E84C4", "Admission Duration" = "#000000")) +
-  labs(caption = "*x-axis major ticks =  3 day intervals \n *x-axis minor ticks = 1 day intervals")
+        legend.title = element_blank())
 
-
+# "Admission Duration"
+# , "Admission Duration" = "#000000"
 #add consultant and patient names or highlight with colour coding
 #add weekends in gray background
 #add infection dates
