@@ -1,0 +1,114 @@
+---
+title: "PoW M&M Cleaning"
+author: "Rory Denham"
+date: "5 June 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+#Load Libraries ------------------------
+library(officer)
+library(magrittr)
+library(tidyverse)
+library(flextable)
+library(janitor)
+library(lubridate)
+library(scales)
+library(stringr)
+library(tibble)
+library(knitr)
+library(kableExtra)
+```
+
+## M&M Datacleaning
+
+The R Markdown file is designed to check the **M&M Historical Data** component of the M&M reports. As a rule the aim is for errors to be removed as data is entered into the CTS database, however this script serves as a systematic double check to ensure all data has been enetered correctly at the end of the month.
+
+```{r DataImport and Datatypes}
+
+#Load Data ------------------------------------
+
+#####
+#change this file accordingly >>>>D:/M&M_Query_Data/ "insert pathfile here"
+
+#PathFile <- "D:M&M_Query_Data_Laura/Oct_Nov/"
+Pathfile <- "C:\\Users\\Break\\Desktop\\MM_Jan_2019_Data\\"
+
+#####
+
+#change to use readr package - require downloading the package first
+MM.Inf <-       read_csv(file = paste(Pathfile, "qry_MMPres_Inf.csv", sep = ""), 
+                         col_types = cols(OpDate = col_date(),
+                                          AdmDate = col_date()
+                                          )
+                         )
+MM.Pres_Main <- read_csv(file = paste(Pathfile, "qry_MMPres_Main.csv", sep = ""))
+MM.ReAdm <-     read_csv(file = paste(Pathfile, "qry_MMPres_ReAdm.csv", sep = ""))
+MM.RTT <-       read_csv(file = paste(Pathfile, "qry_MMPres_RTT.csv", sep = ""))
+
+#Data cleaning and wrangling ------------------
+
+####Fix Variable formats####
+
+str(MM.Pres_Main)
+MM.Pres_Main$AdmDate <- as.Date(MM.Pres_Main$AdmDate, "%d/%m/%Y")
+MM.Pres_Main$ConsultDate <- as.Date(MM.Pres_Main$ConsultDate, "%d/%m/%Y")
+MM.Pres_Main$OpDate <- as.Date(MM.Pres_Main$OpDate, "%d/%m/%Y")
+MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, "%d/%m/%Y")
+MM.Pres_Main$PO_ICUAdmDt <- as.Date(MM.Pres_Main$PO_ICUAdmDt, "%d/%m/%Y")
+MM.Pres_Main$PO_ICUOutDt <- as.Date(MM.Pres_Main$PO_ICUOutDt, "%d/%m/%Y")
+MM.Pres_Main$PO_RFWDt <- as.Date(MM.Pres_Main$PO_RFWDt, "%d/%m/%Y")
+MM.Pres_Main$PO_ExtbDt <- as.Date(MM.Pres_Main$PO_ExtbDt, "%d/%m/%Y")
+MM.Pres_Main$PreOp_Comments <- as.character(MM.Pres_Main$PreOp_Comments)
+MM.Pres_Main$PO_Comments <- as.character(MM.Pres_Main$PO_Comments)
+
+
+MM.Pres_Main$OpCategory <- factor(MM.Pres_Main$OpCategory, levels = (c("CABG",
+                                                                       "CABG/Other",
+                                                                       "Valve",
+                                                                       "Valve/Other",
+                                                                       "CABG/Valve",
+                                                                       "CABG/Valve/Other",
+                                                                       "Other")))
+
+
+MM.Inf$OpDate <- as.Date(MM.Inf$OpDate, "%d/%m/%Y")
+MM.ReAdm$OpDate <- format(as.Date(MM.ReAdm$OpDate, "%d/%m/%Y"), "%d/%m/%Y")
+MM.RTT$OpDate <- as.Date(MM.RTT$OpDate, "%d/%m/%Y")
+
+#create date number variable
+MM.Pres_Main$Num_Months <- month(MM.Pres_Main$OpDate) - month(min(MM.Pres_Main$OpDate)) + 1
+MM.Inf$Num_Months <- month(MM.Inf$OpDate) - month(min(MM.Inf$OpDate)) + 1
+
+#add month variable
+MM.Pres_Main %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE))
+MM.Inf %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE)) 
+
+MM.Pres_Main %<>% mutate(`PO_Vent>24hr` = if_else(PO_ICUAdmDt-PO_ExtbDt>=1, 1, 0))
+
+#add the total caseload (per month) to inf table
+monthtotals <- MM.Pres_Main %>%
+  group_by(Month) %>% 
+  summarise(Total = n()) %>% 
+  arrange(Month) %>% 
+  select(Month, Total)
+
+if(nrow(MM.Inf) != 0) {
+  MM.Inf %<>% group_by(`Patient Details`) %>% 
+    mutate(TotalCasesMonthly = if_else(Num_Months == 1, monthtotals[[1, 2]], monthtotals[[2, 2]]))
+}
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

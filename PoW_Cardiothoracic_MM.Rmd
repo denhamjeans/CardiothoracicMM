@@ -215,13 +215,13 @@ slide1.plotdata %<>%
 
 slide1.plot <- ggplot(data = slide1.plotdata, aes(fill = OpCategory, x = Month, y = Percentage)) +
   geom_bar(stat = 'identity') +
-  geom_text(aes(label = `Percentage_Count`), size = 5, hjust = 0.5, vjust = 2, position = "stack") +
+  geom_text(aes(label = `Percentage_Count`), size = 3.5, hjust = 0.5, vjust = 2, position = "stack") +
   theme_minimal() +
   theme(axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        axis.text.y = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        legend.position = "none") +
+  labs(y = "Percentage (%)")
 
 #http://t-redactyl.io/blog/2016/01/creating-plots-in-r-using-ggplot2-part-4-stacked-bar-plots.html
 #add text to the columns describing the percentages then probably remove the y axis
@@ -303,7 +303,7 @@ slide3totals.data <- MM.Pres_Main %>%                 #count operation categorie
   spread(OpCategory, count) 
 slide3.data <- cbind(slide3.data, TOTAL = rowSums(slide3totals.data[2:length(slide3totals.data)], na.rm = TRUE))        #add totals
 
-slide3.data <- slide3.data %>% my_kable()
+slide3.data
 ```
 
 ```{r Slide4}
@@ -1060,6 +1060,8 @@ if(No.Months == 1){
   captitle <- paste(First.Month, "and", Second.Month, Year, sep = " ")
 }
 
+doc <- read_pptx("Powerpoint_Templates/piktochart.pptx")
+
 #footer for the presentation
 myftr<-"RoryDenham R to PowerPoint"
 
@@ -1068,11 +1070,18 @@ myftr<-"RoryDenham R to PowerPoint"
 read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   layout_summary()
 
+read_pptx("Powerpoint_Templates/piktochart.pptx") %>% 
+  layout_properties(layout = "Title Slide")
+
 read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
-  layout_properties(layout = "Content Only", master = "Office Theme")
+  layout_properties(layout = "Content with Side Graph")
+
+read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
+  layout_properties(layout = "Double Table Small Title")
 
 annotate_base(path = "Powerpoint_Templates/piktochart.pptx", output_file = "annotated_layout_base_edit.pptx")
 
+slide.layouts(doc, 'Content with Side Graph')
 
 ```
 
@@ -1088,9 +1097,10 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_text(type = "ftr", str = myftr) %>%
   
   # Slide 1 - Caseload:
-  add_slide(layout = "Content Small Title", master = "Office Theme") %>% 
-  ph_with_text(type = "title", index=1,str = "Caseload") %>%
-  ph_with_table(type = "body", value = slide1.data) %>%
+  add_slide(layout = "Content with Side Graph", master = "Office Theme") %>% 
+  ph_with_text(type = "title", index=1, str = "Caseload") %>%
+  ph_with_table(type = "body", index=2, value = slide1.data) %>%
+  ph_with_gg(type = "body", index=3, value = slide1.plot) %>% 
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "1" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
@@ -1098,23 +1108,22 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 2 - Caseload historical comparison:
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Caseload Historical Comparison") %>% 
-  ph_with_table(type = "body", value = slide2.data) %>%
+  ph_with_table(type = "body", index = 2, value = slide2.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "2" ) %>%
-  ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
   
   # Slide 3 - Caseload by Consultant:
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Caseload by Consultant") %>% 
-  ph_with_table(type = "body", value = slide3.data) %>%
+  ph_with_table(type = "body", index = 2, value = slide3.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "3" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
-    
+  
   # Slide 4 - Mortalities <= 30 days:
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Mortalities <= 30 days") %>% 
-  ph_with_table(type = "body", index=1, value = slide4.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide4.data1) %>%
   ph_with_table(type = "body", index=2, value = slide4.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "4" ) %>%
@@ -1123,8 +1132,8 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 5 - Outpatient Wait Days:
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index = 1, str = "Outpatient Wait Days") %>% 
-  ph_with_gg(type = "body", index = 1, value = slide5.plot) %>%
-  ph_with_table(type = "body", index = 2, value = slide5.data) %>%
+  ph_with_gg(type = "body", index = 2, value = slide5.plot) %>%
+  ph_with_table(type = "body", index = 1, value = slide5.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "5" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
@@ -1132,7 +1141,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 6 - Outpatient Wait > 90:
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index = 1, str = "Outpatient Wait > 90 Day") %>%
-  ph_with_table(type = "body", index=1, value = slide6.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide6.data1) %>%
   ph_with_table(type = "body", index=2, value = slide6.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "6" ) %>%
@@ -1141,8 +1150,8 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 7 - Inpatient Wait Days:
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index = 1, str = "Inpatient Wait Days") %>% 
-  ph_with_gg(type = "body", index = 1, value = slide7.plot) %>%
-  ph_with_table(type = "body", index = 2, value = slide7.data) %>%
+  ph_with_gg(type = "body", index = 2, value = slide7.plot) %>%
+  ph_with_table(type = "body", index = 1, value = slide7.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "7" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%    
@@ -1150,7 +1159,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 8 - Inpatient Wait > 10 days:
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Inpatient Wait > 10 days") %>% 
-  ph_with_table(type = "body", index=1, value = slide8.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide8.data1) %>%
   ph_with_table(type = "body", index=2, value = slide8.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "8" ) %>%
@@ -1159,8 +1168,8 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 9 - ICU Stay (days):
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "ICU Stay") %>% 
-  ph_with_gg(type = "body", index = 1, value = slide9.plot) %>%
-  ph_with_table(type = "body", index = 2, value = slide9.data) %>%
+  ph_with_gg(type = "body", index = 2, value = slide9.plot) %>%
+  ph_with_table(type = "body", index = 1, value = slide9.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "9" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
@@ -1168,7 +1177,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 10 - Prolonged ICU Stay (>3 days):
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Prolonged ICU Stay (>3 days)") %>% 
-  ph_with_table(type = "body", index=1, value = slide10.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide10.data1) %>%
   ph_with_table(type = "body", index=2, value = slide10.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "10" ) %>%
@@ -1177,8 +1186,8 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 11 - Post-OP LOS (days):
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Post-OP LOS") %>% 
-  ph_with_gg(type = "body", index = 1, value = slide11.plot) %>%
-  ph_with_table(type = "body", index = 2, value = slide11.data) %>%
+  ph_with_gg(type = "body", index = 2, value = slide11.plot) %>%
+  ph_with_table(type = "body", index = 1, value = slide11.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "11" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
@@ -1186,7 +1195,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 12 - Prolonged Post-OP LOS (>10 days):
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Prolonged Post-OP LOS (>10 days)") %>% 
-  ph_with_table(type = "body", index=1, value = slide12.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide12.data1) %>%
   ph_with_table(type = "body", index=2, value = slide12.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "12" ) %>%
@@ -1195,7 +1204,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 13 - Post-op AMI or Cardiac Arrest:
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Post-op AMI or Cardiac Arrest") %>% 
-  ph_with_table(type = "body", index=1, value = slide13.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide13.data1) %>%
   ph_with_table(type = "body", index=2, value = slide13.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "13" ) %>%
@@ -1204,7 +1213,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # slide 14 - IABP Use
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "IABP Use") %>% 
-  ph_with_table(type = "body", index=1, value = slide14.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide14.data1) %>%
   ph_with_table(type = "body", index=2, value = slide14.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "14" ) %>%
@@ -1213,7 +1222,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # slide 15 - Transfusions
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Transfusions") %>% 
-  ph_with_table(type = "body", index=1, value = slide15.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide15.data1) %>%
   ph_with_table(type = "body", index=2, value = slide15.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "15" ) %>%
@@ -1232,7 +1241,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # slide 17 - Return to Theatre
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Return to Theatre") %>% 
-  ph_with_table(type = "body", index=1, value = slide17.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide17.data1) %>%
   ph_with_table(type = "body", index=2, value = slide17.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "17" ) %>%
@@ -1241,7 +1250,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # slide 18 - Infections
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Infections") %>% 
-  ph_with_table(type = "body", index=1, value = slide18.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide18.data1) %>%
   ph_with_table(type = "body", index=2, value = slide18.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "18" ) %>%
@@ -1249,16 +1258,16 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
 
   # slide 19 - Infection details
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Infection details") %>% 
-  ph_with_table(type = "body", value = slide19.data1) %>%
+  ph_with_text(type = "title", index=1, str = "Infection details") %>% 
+  ph_with_table(type = "body", index=2, value = slide19.data1) %>%
   ph_with_text(type = "ftr", str = myftr) %>%
   ph_with_text(type = "sldNum", str = "19") %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
     
   # slide 20 - Atrial Fibrillation & Arrhythmias
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Atrial Fibrillation & Arrhythmias") %>% 
-  ph_with_table(type = "body", value = slide20.data1) %>%
+  ph_with_text(type = "title", index=1, str = "Atrial Fibrillation & Arrhythmias") %>% 
+  ph_with_table(type = "body", index=2, value = slide20.data1) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "20" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
@@ -1266,7 +1275,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # slide 21 - Neurological Events
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Neurological Events") %>% 
-  ph_with_table(type = "body", index=1, value = slide21.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide21.data1) %>%
   ph_with_table(type = "body", index=2, value = slide21.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "21" ) %>%
@@ -1274,8 +1283,8 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   
   # slide 22 - Other Post-Op Complications
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Other Post-Op Complications") %>% 
-  ph_with_table(type = "body", value = slide22.data1) %>%
+  ph_with_text(type = "title", index=1, str = "Other Post-Op Complications") %>% 
+  ph_with_table(type = "body", index=2, value = slide22.data1) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "22" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
@@ -1283,7 +1292,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # slide 23 - Readmitted <= 30 days 
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Readmitted <= 30 days") %>% 
-  ph_with_table(type = "body", index=1, value = slide23.data1) %>%
+  ph_with_table(type = "body", index=3, value = slide23.data1) %>%
   ph_with_table(type = "body", index=2, value = slide23.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "23" ) %>%
