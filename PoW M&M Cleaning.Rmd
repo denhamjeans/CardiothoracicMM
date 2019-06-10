@@ -20,6 +20,8 @@ library(stringr)
 library(tibble)
 library(knitr)
 library(kableExtra)
+library(plotly)
+library(explorers)
 ```
 
 ## M&M Datacleaning
@@ -34,19 +36,22 @@ The R Markdown file is designed to check the **M&M Historical Data** component o
 #change this file accordingly >>>>D:/M&M_Query_Data/ "insert pathfile here"
 
 #PathFile <- "D:M&M_Query_Data_Laura/Oct_Nov/"
-Pathfile <- "C:\\Users\\Break\\Desktop\\MM_Jan_2019_Data\\"
+Pathfile <- "C:\\Users\\Break\\Desktop\\MM_Jan_2019_Data\\Historical\\"
 
 #####
 
 #change to use readr package - require downloading the package first
-MM.Inf <-       read_csv(file = paste(Pathfile, "qry_MMPres_Inf.csv", sep = ""), 
-                         col_types = cols(OpDate = col_date(),
-                                          AdmDate = col_date()
+MM.Inf <-       read_csv(file = paste(Pathfile, "qry_Historical_Inf.csv", sep = ""), 
+                         col_types = cols(OpDate = col_date()
                                           )
                          )
-MM.Pres_Main <- read_csv(file = paste(Pathfile, "qry_MMPres_Main.csv", sep = ""))
-MM.ReAdm <-     read_csv(file = paste(Pathfile, "qry_MMPres_ReAdm.csv", sep = ""))
-MM.RTT <-       read_csv(file = paste(Pathfile, "qry_MMPres_RTT.csv", sep = ""))
+MM.Pres_Main <- read_csv(file = paste(Pathfile, "qry_Historical_Main.csv", sep = ""))
+                         # col_types = cols(OpDate = col_date(format = "%d/%m/%Y"),
+                         #                  AdmDate = col_date()
+                         #                  )
+                         )
+MM.ReAdm <-     read_csv(file = paste(Pathfile, "qry_Historical_ReAdm.csv", sep = ""))
+MM.RTT <-       read_csv(file = paste(Pathfile, "qry_Historical_RTT.csv", sep = ""))
 
 #Data cleaning and wrangling ------------------
 
@@ -100,15 +105,70 @@ if(nrow(MM.Inf) != 0) {
     mutate(TotalCasesMonthly = if_else(Num_Months == 1, monthtotals[[1, 2]], monthtotals[[2, 2]]))
 }
 
-
 ```
 
-## Including Plots
+## Plots
 
 You can also embed plots, for example:
 
 ```{r pressure, echo=FALSE}
-plot(pressure)
+IcuTimelineData <- MM.Pres_Main
+
+
+IcuTimelineData[IcuTimelineData$Pt_LName == 'NEAL, H',"DischargeDate"] = as.Date('2019-02-07')
+IcuTimelineData[IcuTimelineData$Pt_LName == 'LOVETT, S',"AdmDate"] = as.Date('2019-01-01')
+
+IcuTimelineData %<>% mutate(Pt_LName = paste(OpDescription, " (", AdmConsultantInitials, ") ", Pt_LName))
+
+IcuTimelineData$Pt_LName <- factor(IcuTimelineData$Pt_LName, levels = (IcuTimelineData$Pt_LName[order(IcuTimelineData$OpDate)]))
+
+Min.Date <- min(MM.Pres_Main$AdmDate, na.rm = T)
+Max.Date <- max(MM.Pres_Main$DischargeDate, na.rm = T)
+
+weekenddates <- seq(as.Date(Min.Date),as.Date(Max.Date),by = 1)
+weekenddates <- weekenddates[weekdays(weekenddates) %in% c('Saturday','Sunday')]
+
+#weekend highlight function
+# test <- data.frame(DATE=seq(from = min(IcuTimelineData$AdmDate),
+#                             to = max(IcuTimelineData$DischargeDate),
+#                             by = "day"))
+# 
+# test$weekend <- weekdays(test$DATE) %in% c("Saturday", "Sunday")
+# test %<>% filter(weekend == T)
+# 
+#   geom_segment(data = test, aes(x=DATE, xend = DATE+2, y = -Inf, yend = Inf), fill="yellow") +
+
+TimelinePlot <- ggplot(IcuTimelineData, aes(y = Pt_LName)) +
+  # geom_hline(aes(yintercept = Pt_LName, colour = OpConsultant)) +
+  geom_vline(xintercept = weekenddates, alpha =0.2, size = 5) +
+  geom_segment(aes(x = AdmDate, xend = DischargeDate, y = Pt_LName, yend = Pt_LName, linetype = "Total Stay"), colour = "#000000") + #total stay duration (black)
+  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_ICUOutDt, y = Pt_LName, yend = Pt_LName, linetype = "ICU Bed Block Duration"), size = 5, colour = "#D10202") + #total ICU stay - effectively displays bed block (red)
+  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_RFWDt, y = Pt_LName, yend = Pt_LName, linetype='ICU Stay (Ready for Discharge)'), size = 5, colour = "#D16103") + #ICU stay until ready for discharge(orange)
+  geom_segment(aes(x = OpDate, xend = OpDate + 0.5, y = Pt_LName, yend = Pt_LName, linetype = "Operation"), colour = "#4E84C4", size = 5) + 
+  geom_segment(aes(x = AdmDate, xend = AdmDate + 0.1, y = Pt_LName, yend = Pt_LName), size = 5, show.legend = TRUE) +
+  geom_segment(aes(x = DischargeDate, xend =DischargeDate+0.1, y = Pt_LName, yend = Pt_LName), size = 5) +
+  scale_x_date(date_breaks = "3 days", labels = date_format("%d\n%b"), date_minor_breaks = "1 day") +
+  scale_linetype_manual(name = "", values = c(1, 1, 1, 1), 
+                        guide = guide_legend(override.aes = list(color = c("#D10202", "#D16103", "#4E84C4", "#000000")))) +
+  # facet_wrap(~Month, scales = "free_y") +
+  labs(caption = "*x-axis major ticks =  3 day intervals \n *x-axis minor ticks = 1 day intervals \n *Weekends highlighted in grey") +
+  theme_minimal() +
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.line = element_line(colour = "#000000", size = 1, linetype = "solid"),
+        panel.grid.major.y = element_blank(),
+        legend.position = "bottom", 
+        legend.title = element_blank())
+
+
+ggplotly(TimelinePlot)
+# "Admission Duration"
+# , "Admission Duration" = "#000000"
+#add consultant and patient names or highlight with colour coding
+#add weekends in gray background
+#add infection dates
+#highlight deaths
+#show bed block as darker red for the ICU segments
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -11,7 +11,7 @@ This is an R Markdown file intended for the automation of monthly cardiac surger
 
 ##Background of M&M Review
 
-NSW health policy requires monthly M&M reports be created to review serious complications such as deaths or surgical mismanagement. Ordinarily M&M reports are created as a case-by-case patient review wherein the Advanced Surgical Trainee (AT) outlines each patient's medical history, pre-operative course, surgical proceedure and post-operative course in a narrative structure using Microsoft PowerPoint software and a combination of physical and electronic patient records. The M&M reports are then presented at regularly scheduled department meetings on either a monthly, or bi-monthly basis depending on the availability of key parties such as the surgical consultants. 
+NSW health policy requires monthly M&M reports be created to review serious complications such as deaths or surgical mismanagement. Ordinarily M&M reports are created as a case-by-case patient review wherein the Advanced Surgical Trainee (AT) outlines each patient's medical history, pre-operative course, surgical proceedure and post-operative course in a narrative structure using Microsoft PowerPoint software and a combination of physical and electronic patient records. The M&M reports are then presented at regularly scheduled department meetings on either a monthly, or bi-monthly basis depending on the availability of key parties such as the surgical consultants.
 
 However, due to the complex nature of cardiac surgery and the need for a data oriented approach to clincal review processes, a data review component was added to the existing M&M case review reports within the Cardiothoracic Surgery department at Prince of Wales. This presents an opportunity for the relevant stateholders to discuss and address current issues such as infections, pre-op wait times, and post-op complications in the context of historical data.
 
@@ -37,7 +37,6 @@ knitr::opts_chunk$set(echo = FALSE)
 library(officer)
 library(magrittr)
 library(tidyverse)
-library(flextable)
 library(janitor)
 library(lubridate)
 library(scales)
@@ -57,7 +56,11 @@ kable(dataframe) %>%
 
 #function for percentages
 percentage_func <- function(VectorToSum, percentagedenominator){
-  paste(sum(VectorToSum, na.rm = TRUE), " (", round(sum(VectorToSum, na.rm = TRUE)/percentagedenominator*100, 2), "%)", sep = "")
+  paste(sum(VectorToSum, na.rm = TRUE),
+        " (",
+        round(sum(VectorToSum, na.rm = TRUE)/percentagedenominator*100, 2),
+        "%)",
+        sep = "")
 }
 
 ```
@@ -84,15 +87,29 @@ MM.RTT <-       read_csv(file = paste(Pathfile, "qry_MMPres_RTT.csv", sep = ""))
 
 ####Fix Variable formats####
 
+#dates/times
 str(MM.Pres_Main)
 MM.Pres_Main$AdmDate <- as.Date(MM.Pres_Main$AdmDate, "%d/%m/%Y")
 MM.Pres_Main$ConsultDate <- as.Date(MM.Pres_Main$ConsultDate, "%d/%m/%Y")
 MM.Pres_Main$OpDate <- as.Date(MM.Pres_Main$OpDate, "%d/%m/%Y")
 MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, "%d/%m/%Y")
+
 MM.Pres_Main$PO_ICUAdmDt <- as.Date(MM.Pres_Main$PO_ICUAdmDt, "%d/%m/%Y")
 MM.Pres_Main$PO_ICUOutDt <- as.Date(MM.Pres_Main$PO_ICUOutDt, "%d/%m/%Y")
 MM.Pres_Main$PO_RFWDt <- as.Date(MM.Pres_Main$PO_RFWDt, "%d/%m/%Y")
+
+MM.Pres_Main$IABP_InDt <- as.Date(MM.Pres_Main$IABP_InDt, "%d/%m/%Y")
+MM.Pres_Main$IABP_OutDt <- as.Date(MM.Pres_Main$IABP_OutDt, "%d/%m/%Y")
+
+MM.Pres_Main$IABP_InTm <- as.POSIXct(MM.Pres_Main$IABP_InTm, format = "%d/%m/%Y %H:%M:%S")
+
+MM.Pres_Main$PO_IDCOutDate <- as.Date(MM.Pres_Main$PO_IDCOutDate, "%d/%m/%Y")
+
 MM.Pres_Main$PO_ExtbDt <- as.Date(MM.Pres_Main$PO_ExtbDt, "%d/%m/%Y")
+
+
+
+
 MM.Pres_Main$PreOp_Comments <- as.character(MM.Pres_Main$PreOp_Comments)
 MM.Pres_Main$PO_Comments <- as.character(MM.Pres_Main$PO_Comments)
 
@@ -259,7 +276,7 @@ slide2.data <- MM.Pres_Main %>%
              "1.0%",
              "1.5%",
              "1.1%"))
-  
+
   #t() %>% #transpose the dataframe. Needs fixing.
   #mutate("Percentage" = percent(.[[2]] / Total.Cases[['n']])) %>%   #add percentages needs fixing.
   #mutate("Percentage2" = percent(.[[3]] / Total.Cases[['n']])) 
@@ -564,21 +581,6 @@ slide9.plot
 ```
 
 ```{r ICU Timeintervals}
-IcuTimelineData <- MM.Pres_Main
-
-
-IcuTimelineData[IcuTimelineData$Pt_LName == 'NEAL, H',"DischargeDate"] = as.Date('2019-02-07')
-IcuTimelineData[IcuTimelineData$Pt_LName == 'LOVETT, S',"AdmDate"] = as.Date('2019-01-01')
-
-IcuTimelineData %<>% mutate(Pt_LName = paste(OpDescription, " (", AdmConsultantInitials, ") ", Pt_LName))
-
-IcuTimelineData$Pt_LName <- factor(IcuTimelineData$Pt_LName, levels = (IcuTimelineData$Pt_LName[order(IcuTimelineData$OpDate)]))
-
-Min.Date <- min(MM.Pres_Main$AdmDate, na.rm = T)
-Max.Date <- max(MM.Pres_Main$DischargeDate, na.rm = T)
-
-weekenddates <- seq(as.Date(Min.Date),as.Date(Max.Date),by = 1)
-weekenddates <- weekenddates[weekdays(weekenddates) %in% c('Saturday','Sunday')]
 
 #weekend highlight function
 # test <- data.frame(DATE=seq(from = min(IcuTimelineData$AdmDate),
@@ -590,27 +592,118 @@ weekenddates <- weekenddates[weekdays(weekenddates) %in% c('Saturday','Sunday')]
 # 
 #   geom_segment(data = test, aes(x=DATE, xend = DATE+2, y = -Inf, yend = Inf), fill="yellow") +
 
-ggplot(IcuTimelineData, aes(y = Pt_LName)) +
+TimelineFunc <- function(x) {
+  ggplot(x, aes(y = Pt_LName)) +
   # geom_hline(aes(yintercept = Pt_LName, colour = OpConsultant)) +
-  geom_vline(xintercept = weekenddates, alpha =0.2, size = 5) +
-  geom_segment(aes(x = AdmDate, xend = DischargeDate, y = Pt_LName, yend = Pt_LName, linetype = "Total Stay"), colour = "#000000") + #total stay duration (black)
-  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_ICUOutDt, y = Pt_LName, yend = Pt_LName, linetype = "ICU Bed Block Duration"), size = 5, colour = "#D10202") + #total ICU stay - effectively displays bed block (red)
-  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_RFWDt, y = Pt_LName, yend = Pt_LName, linetype='ICU Stay (Ready for Discharge)'), size = 5, colour = "#D16103") + #ICU stay until ready for discharge(orange)
-  geom_segment(aes(x = OpDate, xend = OpDate + 0.5, y = Pt_LName, yend = Pt_LName, linetype = "Operation"), colour = "#4E84C4", size = 5) + 
-  geom_segment(aes(x = AdmDate, xend = AdmDate + 0.1, y = Pt_LName, yend = Pt_LName), size = 5, show.legend = TRUE) +
-  geom_segment(aes(x = DischargeDate, xend =DischargeDate+0.1, y = Pt_LName, yend = Pt_LName), size = 5) +
+  geom_vline(xintercept = weekenddates, alpha =0.2, size = 3.5) +
+  
+  geom_segment(aes(x= IABP_InDt, xend = IABP_OutDt, y = Pt_LName, yend = Pt_LName,
+                   linetype = "IABP Duration", text = paste("Patient Details:", Pt_LName, "\n",
+                                "IABP In:", IABP_InDt, "\n",
+                                "IABP Out:", IABP_OutDt)),
+               colour = "#95d4f3",
+               size = 8) +
+    
+  geom_segment(aes(x = AdmDate, xend = DischargeDate, y = Pt_LName, yend = Pt_LName,
+                   linetype = "Total Stay"), 
+                   colour = "#000000") + #total stay duration (black)
+  
+  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_ICUOutDt, y = Pt_LName, yend = Pt_LName,
+                   linetype = "ICU Bed Block Duration", text = paste("Patient Details:", Pt_LName, "\n", 
+                                                                     "ICU Admission:", PO_ICUAdmDt, "\n",
+                                                                     "Ready for Ward:", PO_RFWDt, "\n",
+                                                                     "ICU Discharge:", PO_ICUOutDt, "\n")),
+               size = 5,
+               colour = "#D10202") + #total ICU stay - effectively displays bed block (red)
+  
+  geom_segment(aes(x = PO_ICUAdmDt, xend = PO_RFWDt, y = Pt_LName, yend = Pt_LName,
+                   linetype="ICU Stay (Ready for Discharge)", text = paste("Patient Details:", Pt_LName, "\n",
+                                                                           "ICU Admission:", PO_ICUAdmDt, "\n",
+                                                                           "Ready for Ward:", PO_RFWDt, "\n",
+                                                                           "ICU Discharge:", PO_ICUOutDt, "\n")),
+               size = 5, 
+               colour = "#D16103") + #ICU stay until ready for discharge(orange)
+  
+  geom_segment(aes(x = OpDate, xend = OpDate + 0.5, y = Pt_LName, yend = Pt_LName, 
+                   linetype = "Operation", text = paste("Patient Details:", Pt_LName, "\n", 
+                                                        "Operation Date:", OpDate)), 
+               colour = "#002953",
+               size = 5) +
+  
+  geom_segment(aes(x = OpDate, xend = PO_ExtbDt, y = Pt_LName, yend = Pt_LName,
+                   linetype = "Intubation", text = paste("Patient Details:", Pt_LName, "\n", 
+                                                         "Extubation Date:", PO_ExtbDt)),
+               colour = "#0B6623",
+               size = 1.5) +
+
+  geom_segment(aes(x = AdmDate, xend = AdmDate + 0.1, y = Pt_LName, yend = Pt_LName,
+                   text = paste("Patient Details:", Pt_LName, "\n",
+                                "Admission Date:", AdmDate)),
+               size = 5,
+               show.legend = TRUE) +
+    
+  geom_segment(aes(x = DischargeDate, xend = DischargeDate+0.1, y = Pt_LName, yend = Pt_LName,
+                   text = paste("Patient Details:", Pt_LName, "\n",
+                                "Discharge Date:", DischargeDate)),
+               colour = "#2f4b7c",
+               size = 5) +
+  
+  geom_point(aes(x = PO_IDCOutDate,
+                 text = paste("Patient Details:", Pt_LName, "\n",
+                              "IDC Out:", PO_IDCOutDate), 
+                 fill = "IDC Out"),
+             size = 1.5) +
+    
   scale_x_date(date_breaks = "3 days", labels = date_format("%d\n%b"), date_minor_breaks = "1 day") +
-  scale_linetype_manual(name = "", values = c(1, 1, 1, 1), 
-                        guide = guide_legend(override.aes = list(color = c("#D10202", "#D16103", "#4E84C4", "#000000")))) +
-  facet_wrap(~Month, scales = "free_y") +
+  scale_linetype_manual(name = "", values = c(1, 1, 1, 1, 1, 1),
+                        guide = guide_legend(override.aes = list(color = c("ICU Bed Block Duration" = "#D10202",
+                                                                           "ICU Stay (Ready for Discharge)" = "#D16103",
+                                                                           "Operation"= "#002953",
+                                                                           "Total Stay" = "#000000",
+                                                                           "Intubation" = "#0B6623",
+                                                                           "IABP Duration" = "#95d4f3")))) +
+  scale_fill_manual(name = "", values = c("IDC Out" = "#000000")) +
   labs(caption = "*x-axis major ticks =  3 day intervals \n *x-axis minor ticks = 1 day intervals \n *Weekends highlighted in grey") +
   theme_minimal() +
   theme(axis.title.y = element_blank(),
         axis.title.x = element_blank(),
         axis.line = element_line(colour = "#000000", size = 1, linetype = "solid"),
         panel.grid.major.y = element_blank(),
-        legend.position = "bottom", 
+        legend.position = "right", 
         legend.title = element_blank())
+}
+
+IcuTimelineData <- MM.Pres_Main
+
+IcuTimelineData[IcuTimelineData$Pt_LName == 'NEAL, H',"DischargeDate"] = as.Date('2019-02-07')
+IcuTimelineData[IcuTimelineData$Pt_LName == 'LOVETT, S',"AdmDate"] = as.Date('2019-01-01')
+IcuTimelineData[IcuTimelineData$Pt_LName == 'SHARMA, S', 'PO_IDCOutDate'] = as.Date('2019-01-24')
+
+IcuTimelineData %<>% mutate(Pt_LName = paste(OpDescription, " (", AdmConsultantInitials, ") ", Pt_LName))
+
+IcuTimelineData$Pt_LName <- factor(IcuTimelineData$Pt_LName, levels = (IcuTimelineData$Pt_LName[order(IcuTimelineData$OpDate)]))
+
+Min.Date <- min(MM.Pres_Main$AdmDate, na.rm = T)
+Max.Date <- max(MM.Pres_Main$DischargeDate, na.rm = T)
+
+weekenddates <- seq(as.Date(Min.Date),as.Date(Max.Date),by = 1)
+weekenddates <- weekenddates[weekdays(weekenddates) %in% c('Saturday','Sunday')]
+
+
+
+IcuTimelineData1 <- IcuTimelineData %>% 
+  filter(Num_Months == 1)
+
+TimelinePlot1 <- TimelineFunc(IcuTimelineData1)
+
+IcuTimelineData2 <- IcuTimelineData %>% 
+  filter(Num_Months == 2)
+
+TimelinePlot2 <- TimelineFunc((IcuTimelineData2))
+
+ggplotly(TimelinePlot1, tooltip = "text")  
+
+
 
 # "Admission Duration"
 # , "Admission Duration" = "#000000"
@@ -619,6 +712,8 @@ ggplot(IcuTimelineData, aes(y = Pt_LName)) +
 #add infection dates
 #highlight deaths
 #show bed block as darker red for the ICU segments
+TimelinePlot1
+TimelinePlot2
 ```
 
 
@@ -1079,9 +1174,11 @@ read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
 read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   layout_properties(layout = "Double Table Small Title")
 
-annotate_base(path = "Powerpoint_Templates/piktochart.pptx", output_file = "annotated_layout_base_edit.pptx")
+read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
+  layout_properties(layout = "Table Graph and Small Title")
 
-slide.layouts(doc, 'Content with Side Graph')
+
+annotate_base(path = "Powerpoint_Templates/piktochart.pptx", output_file = "annotated_layout_base_edit.pptx")
 
 ```
 
@@ -1099,8 +1196,8 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 1 - Caseload:
   add_slide(layout = "Content with Side Graph", master = "Office Theme") %>% 
   ph_with_text(type = "title", index=1, str = "Caseload") %>%
-  ph_with_table(type = "body", index=2, value = slide1.data) %>%
-  ph_with_gg(type = "body", index=3, value = slide1.plot) %>% 
+  ph_with_table(type = "tbl", index=1, value = slide1.data) %>%
+  ph_with_gg(type = "pic", index=1, value = slide1.plot) %>% 
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "1" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
@@ -1108,14 +1205,14 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 2 - Caseload historical comparison:
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Caseload Historical Comparison") %>% 
-  ph_with_table(type = "body", index = 2, value = slide2.data) %>%
+  ph_with_table(type = "body", index = 1, value = slide2.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "2" ) %>%
   
   # Slide 3 - Caseload by Consultant:
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Caseload by Consultant") %>% 
-  ph_with_table(type = "body", index = 2, value = slide3.data) %>%
+  ph_with_table(type = "body", index = 1, value = slide3.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "3" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
@@ -1123,8 +1220,8 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 4 - Mortalities <= 30 days:
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Mortalities <= 30 days") %>% 
-  ph_with_table(type = "body", index=3, value = slide4.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide4.data2) %>%
+  ph_with_table(type = "body", index=2, value = slide4.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide4.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "4" ) %>%
   ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
@@ -1132,7 +1229,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 5 - Outpatient Wait Days:
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index = 1, str = "Outpatient Wait Days") %>% 
-  ph_with_gg(type = "body", index = 2, value = slide5.plot) %>%
+  ph_with_gg(type = "pic", index = 1, value = slide5.plot) %>%
   ph_with_table(type = "body", index = 1, value = slide5.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "5" ) %>%
@@ -1141,8 +1238,8 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 6 - Outpatient Wait > 90:
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index = 1, str = "Outpatient Wait > 90 Day") %>%
-  ph_with_table(type = "body", index=3, value = slide6.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide6.data2) %>%
+  ph_with_table(type = "body", index=2, value = slide6.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide6.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "6" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
@@ -1150,7 +1247,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 7 - Inpatient Wait Days:
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index = 1, str = "Inpatient Wait Days") %>% 
-  ph_with_gg(type = "body", index = 2, value = slide7.plot) %>%
+  ph_with_gg(type = "pic", index = 1, value = slide7.plot) %>%
   ph_with_table(type = "body", index = 1, value = slide7.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "7" ) %>%
@@ -1159,8 +1256,8 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 8 - Inpatient Wait > 10 days:
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Inpatient Wait > 10 days") %>% 
-  ph_with_table(type = "body", index=3, value = slide8.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide8.data2) %>%
+  ph_with_table(type = "body", index=2, value = slide8.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide8.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "8" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
@@ -1168,138 +1265,147 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   # Slide 9 - ICU Stay (days):
   add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "ICU Stay") %>% 
-  ph_with_gg(type = "body", index = 2, value = slide9.plot) %>%
+  ph_with_gg(type = "pic", index = 1, value = slide9.plot) %>%
   ph_with_table(type = "body", index = 1, value = slide9.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "9" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
   
-  # Slide 10 - Prolonged ICU Stay (>3 days):
-  add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Prolonged ICU Stay (>3 days)") %>% 
-  ph_with_table(type = "body", index=3, value = slide10.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide10.data2) %>%
+  # Slide 10 - Patient Timeline Graph:
+  add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "title", index=1,str = "Patient Timeline") %>% 
+  ph_with_gg(type = "pic", index = 1, value = TimelinePlot1) %>%
+  ph_with_gg(type = "chart", index = 1, value = TimelinePlot2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "10" ) %>%
-  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
+  ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
   
-  # Slide 11 - Post-OP LOS (days):
-  add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Post-OP LOS") %>% 
-  ph_with_gg(type = "body", index = 2, value = slide11.plot) %>%
-  ph_with_table(type = "body", index = 1, value = slide11.data) %>%
+  # Slide 11 - Prolonged ICU Stay (>3 days):
+  add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "title", index=1,str = "Prolonged ICU Stay (>3 days)") %>% 
+  ph_with_table(type = "body", index=2, value = slide10.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide10.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "11" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
   
-  # Slide 12 - Prolonged Post-OP LOS (>10 days):
-  add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Prolonged Post-OP LOS (>10 days)") %>% 
-  ph_with_table(type = "body", index=3, value = slide12.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide12.data2) %>%
+  # Slide 12 - Post-OP LOS (days):
+  add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "title", index=1,str = "Post-OP LOS") %>% 
+  ph_with_gg(type = "pic", index = 1, value = slide11.plot) %>%
+  ph_with_table(type = "body", index = 1, value = slide11.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "12" ) %>%
-  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%  
-
-  # Slide 13 - Post-op AMI or Cardiac Arrest:
+  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
+  
+  # Slide 13 - Prolonged Post-OP LOS (>10 days):
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Post-op AMI or Cardiac Arrest") %>% 
-  ph_with_table(type = "body", index=3, value = slide13.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide13.data2) %>%
+  ph_with_text(type = "title", index=1,str = "Prolonged Post-OP LOS (>10 days)") %>% 
+  ph_with_table(type = "body", index=2, value = slide12.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide12.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "13" ) %>%
-  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
+  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%  
 
-  # slide 14 - IABP Use
+  # Slide 14 - Post-op AMI or Cardiac Arrest:
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "IABP Use") %>% 
-  ph_with_table(type = "body", index=3, value = slide14.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide14.data2) %>%
+  ph_with_text(type = "title", index=1,str = "Post-op AMI or Cardiac Arrest") %>% 
+  ph_with_table(type = "body", index=2, value = slide13.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide13.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "14" ) %>%
-  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
+  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
 
-  # slide 15 - Transfusions
+  # slide 15 - IABP Use
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Transfusions") %>% 
-  ph_with_table(type = "body", index=3, value = slide15.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide15.data2) %>%
+  ph_with_text(type = "title", index=1,str = "IABP Use") %>% 
+  ph_with_table(type = "body", index=2, value = slide14.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide14.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "15" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
 
-  # slide 16 - Reintubation & Return to ICU
+  # slide 16 - Transfusions
+  add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "title", index=1,str = "Transfusions") %>% 
+  ph_with_table(type = "body", index=2, value = slide15.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide15.data2) %>%
+  ph_with_text(type = "ftr", str = myftr ) %>%
+  ph_with_text(type = "sldNum", str = "16" ) %>%
+  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
+
+  # slide 17 - Reintubation & Return to ICU
   add_slide(layout = "Triple Table and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Reintubation & Return to ICU") %>% 
   ph_with_table(type = "body", index=1, value = slide16.data1) %>%
   ph_with_table(type = "body", index=2, value = slide16.data2) %>%
   ph_with_table(type = "body", index=3, value = slide16.data3) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "16" ) %>%
-  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
-
-  # slide 17 - Return to Theatre
-  add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Return to Theatre") %>% 
-  ph_with_table(type = "body", index=3, value = slide17.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide17.data2) %>%
-  ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "17" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
 
-  # slide 18 - Infections
+  # slide 18 - Return to Theatre
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Infections") %>% 
-  ph_with_table(type = "body", index=3, value = slide18.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide18.data2) %>%
+  ph_with_text(type = "title", index=1,str = "Return to Theatre") %>% 
+  ph_with_table(type = "body", index=2, value = slide17.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide17.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "18" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
 
-  # slide 19 - Infection details
+  # slide 19 - Infections
+  add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "title", index=1,str = "Infections") %>% 
+  ph_with_table(type = "body", index=2, value = slide18.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide18.data2) %>%
+  ph_with_text(type = "ftr", str = myftr ) %>%
+  ph_with_text(type = "sldNum", str = "19" ) %>%
+  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
+
+  # slide 20 - Infection details
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1, str = "Infection details") %>% 
-  ph_with_table(type = "body", index=2, value = slide19.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide19.data1) %>%
   ph_with_text(type = "ftr", str = myftr) %>%
-  ph_with_text(type = "sldNum", str = "19") %>%
+  ph_with_text(type = "sldNum", str = "20") %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
     
-  # slide 20 - Atrial Fibrillation & Arrhythmias
+  # slide 21 - Atrial Fibrillation & Arrhythmias
   add_slide(layout = "Content Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1, str = "Atrial Fibrillation & Arrhythmias") %>% 
-  ph_with_table(type = "body", index=2, value = slide20.data1) %>%
-  ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "20" ) %>%
-  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
-  
-  # slide 21 - Neurological Events
-  add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Neurological Events") %>% 
-  ph_with_table(type = "body", index=3, value = slide21.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide21.data2) %>%
+  ph_with_table(type = "body", index=1, value = slide20.data1) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "21" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
   
-  # slide 22 - Other Post-Op Complications
-  add_slide(layout = "Content Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1, str = "Other Post-Op Complications") %>% 
-  ph_with_table(type = "body", index=2, value = slide22.data1) %>%
+  # slide 22 - Neurological Events
+  add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "title", index=1,str = "Neurological Events") %>% 
+  ph_with_table(type = "body", index=2, value = slide21.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide21.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "22" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
   
-  # slide 23 - Readmitted <= 30 days 
-  add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Readmitted <= 30 days") %>% 
-  ph_with_table(type = "body", index=3, value = slide23.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide23.data2) %>%
+  # slide 23 - Other Post-Op Complications
+  add_slide(layout = "Content Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "title", index=1, str = "Other Post-Op Complications") %>% 
+  ph_with_table(type = "body", index=1, value = slide22.data1) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
   ph_with_text(type = "sldNum", str = "23" ) %>%
+  ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
+  
+  # slide 24 - Readmitted <= 30 days 
+  add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
+  ph_with_text(type = "title", index=1,str = "Readmitted <= 30 days") %>% 
+  ph_with_table(type = "body", index=2, value = slide23.data1) %>%
+  ph_with_table(type = "body", index=1, value = slide23.data2) %>%
+  ph_with_text(type = "ftr", str = myftr ) %>%
+  ph_with_text(type = "sldNum", str = "24" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y"))
   
   # Print to save powerpoint
-
+  
   if(No.Months == 1){
     MM.filename <- paste(First.Month,"_", Year, "_M&M.pptx", sep = "")
   } else if(No.Months >= 2){
@@ -1310,4 +1416,11 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   invisible()
 
 ```
+
+```{r}
+mypres <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
+  add_slide(layout = "Content with Side Graph", master = "Office Theme") 
+layout_properties ( x = mypres, layout = "Title and Content", master = "Office Theme" )
+```
+
 
