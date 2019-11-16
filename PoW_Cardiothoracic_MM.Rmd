@@ -44,6 +44,7 @@ library(stringr)
 library(tibble)
 library(knitr)
 library(kableExtra)
+library(plotly)
 ```
 
 ```{r Function_Setup}
@@ -63,6 +64,16 @@ percentage_func <- function(VectorToSum, percentagedenominator){
         sep = "")
 }
 
+
+#helper function for adding historical values
+add_historical_values_func <- function(slide_data, historical_list) {
+  slide_data$Month <- as.character(slide_data$Month)
+  slide_data <- slide_data %>% 
+    rbind(historical_list)
+  return(slide_data)
+}
+
+
 ```
 
 
@@ -73,9 +84,12 @@ percentage_func <- function(VectorToSum, percentagedenominator){
 #change this file accordingly >>>>D:/M&M_Query_Data/ "insert pathfile here"
 
 #PathFile <- "D:M&M_Query_Data_Laura/Oct_Nov/"
-Pathfile <- "C:\\Users\\Break\\Desktop\\MM_Jan_2019_Data\\"
+Pathfile <- "C:\\Users\\Break\\Desktop\\June_July\\"
 
 #####
+
+#qry_MMPres_Main.csv
+# Copy Of qry_MMPres_Main
 
 #change to use readr package - require downloading the package first
 MM.Inf <-       read_csv(file = paste(Pathfile, "qry_MMPres_Inf.csv", sep = ""))
@@ -88,26 +102,101 @@ MM.RTT <-       read_csv(file = paste(Pathfile, "qry_MMPres_RTT.csv", sep = ""))
 ####Fix Variable formats####
 
 #dates/times
-str(MM.Pres_Main)
-MM.Pres_Main$AdmDate <- as.Date(MM.Pres_Main$AdmDate, "%d/%m/%Y")
-MM.Pres_Main$ConsultDate <- as.Date(MM.Pres_Main$ConsultDate, "%d/%m/%Y")
-MM.Pres_Main$OpDate <- as.Date(MM.Pres_Main$OpDate, "%d/%m/%Y")
-MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, "%d/%m/%Y")
 
-MM.Pres_Main$PO_ICUAdmDt <- as.Date(MM.Pres_Main$PO_ICUAdmDt, "%d/%m/%Y")
-MM.Pres_Main$PO_ICUOutDt <- as.Date(MM.Pres_Main$PO_ICUOutDt, "%d/%m/%Y")
-MM.Pres_Main$PO_RFWDt <- as.Date(MM.Pres_Main$PO_RFWDt, "%d/%m/%Y")
+#Admission DATE/TIME ***************************
+MM.Pres_Main$AdmDate <- as.POSIXct(MM.Pres_Main$AdmDate, format = "%d/%m/%Y")
+MM.Pres_Main$AdmTime <- as.POSIXct(MM.Pres_Main$AdmDate, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$AdmDate <- as.POSIXct(paste(MM.Pres_Main$AdmDate, MM.Pres_Main$AdmTime), format="%Y-%m-%d %H:%M:%S")
 
+
+#Consult DATE/TIME *************************
+MM.Pres_Main$ConsultDate <- as.POSIXct(MM.Pres_Main$ConsultDate, format = "%d/%m/%Y")
+MM.Pres_Main$ConsultTime <- as.POSIXct(MM.Pres_Main$ConsultDate, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$ConsultDate <- as.POSIXct(paste(MM.Pres_Main$ConsultDate, MM.Pres_Main$ConsultTime), format="%Y-%m-%d %H:%M:%S")
+
+MM.Pres_Main %<>% mutate(ConsultDate = if_else(is.na(ConsultDate), AdmDate, ConsultDate))
+
+
+#Operation DATE/TIME ************************
+MM.Pres_Main$OpDate <- as.POSIXct(MM.Pres_Main$OpDate, format = "%d/%m/%Y")
+MM.Pres_Main$OpTime <- as.POSIXct(MM.Pres_Main$OpDate, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$OpDate <- as.POSIXct(paste(MM.Pres_Main$OpDate, MM.Pres_Main$OpTime), format="%Y-%m-%d %H:%M:%S")
+
+#Discharge DATE/TIME *************************
+MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, format = "%d/%m/%Y")
+MM.Pres_Main$DischargeTime <- as.POSIXct(MM.Pres_Main$DischargeDate, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$DischargeDate <- as.POSIXct(paste(MM.Pres_Main$DischargeDate, MM.Pres_Main$DischargeTime), format="%Y-%m-%d %H:%M:%S")
+
+#ICU admission DATE/TIME **********************
+MM.Pres_Main$PO_ICUAdmDt <- as.Date(MM.Pres_Main$PO_ICUAdmDt, format = "%d/%m/%Y")
+MM.Pres_Main$PO_ICUAdmTm <- as.POSIXct(MM.Pres_Main$PO_ICUAdmDt, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$PO_ICUAdmDt <- as.POSIXct(paste(MM.Pres_Main$PO_ICUAdmDt, MM.Pres_Main$PO_ICUAdmTm), format="%Y-%m-%d %H:%M:%S")
+
+
+
+
+#IABP In DATE/TIME
 MM.Pres_Main$IABP_InDt <- as.Date(MM.Pres_Main$IABP_InDt, "%d/%m/%Y")
+MM.Pres_Main$IABP_InTm <- as.POSIXct(MM.Pres_Main$IABP_InTm, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$IABP_InDt <- as.POSIXct(paste(MM.Pres_Main$IABP_InDt, MM.Pres_Main$IABP_InTm), format="%Y-%m-%d %H:%M:%S")
+
+#IABP Out DATE/TIME
 MM.Pres_Main$IABP_OutDt <- as.Date(MM.Pres_Main$IABP_OutDt, "%d/%m/%Y")
+MM.Pres_Main$IABP_OutTm <- as.POSIXct(MM.Pres_Main$IABP_OutTm, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$IABP_OutDt <- as.POSIXct(paste(MM.Pres_Main$IABP_OutDt, MM.Pres_Main$IABP_OutTm), format="%Y-%m-%d %H:%M:%S")
 
-MM.Pres_Main$IABP_InTm <- as.POSIXct(MM.Pres_Main$IABP_InTm, format = "%d/%m/%Y %H:%M:%S")
-
+#IDC Out DATE/TIME
 MM.Pres_Main$PO_IDCOutDate <- as.Date(MM.Pres_Main$PO_IDCOutDate, "%d/%m/%Y")
+MM.Pres_Main$PO_IDC_OutTime <- as.POSIXct(MM.Pres_Main$PO_IDC_OutTime, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$PO_IDCOutDate <- as.POSIXct(paste(MM.Pres_Main$PO_IDCOutDate, MM.Pres_Main$PO_IDC_OutTime), format="%Y-%m-%d %H:%M:%S")
 
+
+
+
+#Intubation DATE/TIME
+MM.Pres_Main$IntubationDt <- as.Date(MM.Pres_Main$IntubationDt, "%d/%m/%Y")
+MM.Pres_Main$IntubationTm <- as.POSIXct(MM.Pres_Main$IntubationTm, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$IntubationDt <- as.POSIXct(paste(MM.Pres_Main$IntubationDt, MM.Pres_Main$IntubationTm), format="%Y-%m-%d %H:%M:%S")
+
+#Extubation DATE/TIME
 MM.Pres_Main$PO_ExtbDt <- as.Date(MM.Pres_Main$PO_ExtbDt, "%d/%m/%Y")
+MM.Pres_Main$PO_ExtbTm <- as.POSIXct(MM.Pres_Main$PO_ExtbTm, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$PO_ExtbDt <- as.POSIXct(paste(MM.Pres_Main$PO_ExtbDt, MM.Pres_Main$PO_ExtbTm), format="%Y-%m-%d %H:%M:%S")
 
+#ReIntubation DATE/TIME
+MM.Pres_Main$PO_ReIntbDt <- as.Date(MM.Pres_Main$PO_ReIntbDt, "%d/%m/%Y")
+MM.Pres_Main$PO_ReIntbTm <- as.POSIXct(MM.Pres_Main$PO_ReIntbTm, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$PO_ReIntbDt <- as.POSIXct(paste(MM.Pres_Main$PO_ReIntbDt, MM.Pres_Main$PO_ReIntbTm), format="%Y-%m-%d %H:%M:%S")
 
+#ReExtubation DATE/TIME
+MM.Pres_Main$PO_ReExtbDt <- as.Date(MM.Pres_Main$PO_ReExtbDt, "%d/%m/%Y")
+MM.Pres_Main$PO_ReExtbTm <- as.POSIXct(MM.Pres_Main$PO_ReExtbTm, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$PO_ReExtbDt <- as.POSIXct(paste(MM.Pres_Main$PO_ReExtbDt, MM.Pres_Main$PO_ReExtbTm), format="%Y-%m-%d %H:%M:%S")
+
+#Ready for ward DATE/TIME
+MM.Pres_Main$PO_RFWDt <- as.Date(MM.Pres_Main$PO_RFWDt, "%d/%m/%Y")
+MM.Pres_Main$PO_RFWTm <- as.POSIXct(MM.Pres_Main$PO_RFWTm, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$PO_RFWDt <- as.POSIXct(paste(MM.Pres_Main$PO_RFWDt, MM.Pres_Main$PO_RFWTm), format="%Y-%m-%d %H:%M:%S")
+
+#ICU discharge DATE/TIME
+MM.Pres_Main$PO_ICUOutDt <- as.Date(MM.Pres_Main$PO_ICUOutDt, "%d/%m/%Y")
+MM.Pres_Main$PO_ICUOutTm <- as.POSIXct(MM.Pres_Main$PO_ICUOutTm, format = "%d/%m/%Y %H:%M:%S") %>%
+   strftime(format="%H:%M:%S")
+MM.Pres_Main$PO_ICUOutDt <- as.POSIXct(paste(MM.Pres_Main$PO_ICUOutDt, MM.Pres_Main$PO_ICUOutTm), format="%Y-%m-%d %H:%M:%S")
+ 
 
 
 MM.Pres_Main$PreOp_Comments <- as.character(MM.Pres_Main$PreOp_Comments)
@@ -135,7 +224,8 @@ MM.Inf$Num_Months <- month(MM.Inf$OpDate) - month(min(MM.Inf$OpDate)) + 1
 MM.Pres_Main %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE))
 MM.Inf %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE)) 
 
-MM.Pres_Main %<>% mutate(`PO_Vent>24hr` = if_else(PO_ICUAdmDt-PO_ExtbDt>=1, 1, 0))
+
+MM.Pres_Main %<>% mutate(`PO_Vent>24hr` = if_else(PO_ExtbDt-IntubationDt>=24, 1, 0))
 
 #add the total caseload (per month) to inf table
 monthtotals <- MM.Pres_Main %>%
@@ -144,9 +234,13 @@ monthtotals <- MM.Pres_Main %>%
   arrange(Month) %>% 
   select(Month, Total)
 
+
 if(nrow(MM.Inf) != 0) {
-  MM.Inf %<>% group_by(`Patient Details`) %>% 
-    mutate(TotalCasesMonthly = if_else(Num_Months == 1, monthtotals[[1, 2]], monthtotals[[2, 2]]))
+  if(No.Months == 1) {
+    MM.Inf$TotalCasesMonthly = monthtotals[[1, 2]]
+  } else {
+    MM.Inf$TotalCasesMonthly = monthtotals[[2, 2]]
+  }
 }
 
 # Determine how many dates selected ---------------
@@ -167,7 +261,7 @@ Total.Cases <- MM.Pres_Main %>%
 
 ## Tables and Graphs for slides ---------------------
 
-```{r Slide1}
+```{r Slide1, echo=FALSE}
 
 # Slide 1 ------------------------------------------
 #caseload by category
@@ -185,7 +279,7 @@ if(No.Months == 1) {                              #if one month is present withi
     x <- MM.Pres_Main %>%                                 #if major OPcategories were not used to create the table in this fashion the table would be too large
       select(OpCategory, OpDescription) %>%
       filter(OpCategory == Unique.Category[i])
-    slide1.data[i, "Description"] <- paste(unique(x$OpDescription), collapse = ", ")
+    slide1.data[i, "Op Subcategory"] <- paste(unique(x$OpDescription), collapse = ", ")
   }
   
 } else if(No.Months == 2) {                       #if one month is present within M&M dataset create counts for each surgery type
@@ -205,7 +299,7 @@ if(No.Months == 1) {                              #if one month is present withi
       x <- MM.Pres_Main %>%
         select(OpCategory, OpDescription, Num_Months) %>%
         filter(OpCategory == Unique.Category[i] & Num_Months == e)
-      slide1.data[i, paste("Description", e)] <- paste(unique(x$OpDescription), collapse = ", ")
+      slide1.data[i, paste("Op Subcategory", e)] <- paste(unique(x$OpDescription), collapse = ", ")
     }
   }
   
@@ -232,7 +326,7 @@ slide1.plotdata %<>%
 
 slide1.plot <- ggplot(data = slide1.plotdata, aes(fill = OpCategory, x = Month, y = Percentage)) +
   geom_bar(stat = 'identity') +
-  geom_text(aes(label = `Percentage_Count`), size = 3.5, hjust = 0.5, vjust = 2, position = "stack") +
+  geom_text(aes(label = `Percentage_Count`), size = 3.5, hjust = 0.5, vjust = 1.0, position = "stack") +
   theme_minimal() +
   theme(axis.title.x = element_blank(),
         panel.grid.major.x = element_blank(),
@@ -250,38 +344,42 @@ slide1.plot
 ```{r Slide2}
 # Slide 2 ------------------------------------------
 #Caseload historical comparison
+
 slide2.data <- MM.Pres_Main %>%
   group_by(Month) %>%
   summarise("Elective Count" = percentage_func(Op_StatusPOW == 1, n()),
             "Urgent Count" = percentage_func(Op_StatusPOW == 2, n()),
             "Emergency Count" = percentage_func(Op_StatusPOW == 3, n()),
             "Redo" = percentage_func(Op_Incidence > 1, n()), 
-            "Mean Age" = mean(Op_Age, na.rm = TRUE), 
-            "Median Age" = median(Op_Age, na.rm = TRUE),
-            "Mean Logistic EUROSCORE" = mean(EUROScoreLogistic, na.rm = TRUE),
+            "Mean Age" = round(mean(Op_Age, na.rm = TRUE), 1), 
+            "Median Age" = round(median(Op_Age, na.rm = TRUE), 1),
+            "Mean Logistic EUROSCORE" = round(mean(EUROScoreLogistic, na.rm = TRUE), 1),
             "Median Logistic EUROSCORE" = median(EUROScoreLogistic, na.rm = TRUE)
-            ) %>% 
-    rbind(list("Historical (Per Month)",
-             "13.2%",
-             "2.7%",
-             "9.7%",
-             "",
-             "2.4%",
-             "1.1%",
-             "",
-             "0.4%",
-             "0.04%",
-             "0.4%",
-             "1.1%",
-             "1.0%",
-             "1.5%",
-             "1.1%"))
+            )
+
+slide2.data <- add_historical_values_func(slide2.data,
+                           list("Historical (Per Month)",
+                                 "13.2%",
+                                 "2.7%",
+                                 "9.7%",
+                                 "",
+                                 "2.4%",
+                                 "1.1%",
+                                 "",
+                                 "0.4%",
+                                 "0.04%",
+                                 "0.4%",
+                                 "1.1%",
+                                 "1.0%",
+                                 "1.5%",
+                                 "1.1%"))
+
 
   #t() %>% #transpose the dataframe. Needs fixing.
   #mutate("Percentage" = percent(.[[2]] / Total.Cases[['n']])) %>%   #add percentages needs fixing.
   #mutate("Percentage2" = percent(.[[3]] / Total.Cases[['n']])) 
 
-slide2.data %>% my_kable()
+slide2.data %>% kable()
 ```
 
 ```{r Slide3}
@@ -335,7 +433,7 @@ slide4.data1 <- MM.Pres_Main %>%
 
 slide4.data2 <- MM.Pres_Main %>%
   group_by(Month) %>%
-  filter(FU_Death30d == 1) %>%
+  filter(FU_Death30d == 1 | FU_Death == 1) %>%
   select(Pt_LName, OpConsultant, Month, Op_Age, Op_StatusPOW, EUROScoreLogistic, Death_DaysPO, FU_DeathCause1, FU_DeathCause2, FU_DeathNotes)
 
 if (dim(slide4.data2)[1] == 0) {
@@ -356,19 +454,20 @@ slide4.data2 %>% my_kable()
 slide5.data <- MM.Pres_Main %>%
   filter(Adm_Elective == 1) %>%
   group_by(Month) %>%
-  mutate(waitdays = OpDate - ConsultDate) %>%
+  mutate(waitdays = difftime(OpDate, ConsultDate, units = "days")) %>%
   select(Month, waitdays) %>%
-  summarise(Mean = round(mean(waitdays, na.rm = TRUE), 1), Median = median(waitdays, na.rm = TRUE)) %>%
-  rbind(list("Historical", 67.7, 68))
+  summarise(Mean = round(mean(waitdays, na.rm = TRUE), 1), Median = median(waitdays, na.rm = TRUE))
+
+slide5.data <- add_historical_values_func(slide5.data, list("Historical", 67.7, 68))
 
 ###Variable setup for graphing
 
 #highlight max values for each of the waiting periods
 slide5.plotdata <- MM.Pres_Main %>%
   filter(Adm_Elective == 1) %>%
-  select(OpConsultant, Pt_LName, OpDate, ConsultDate) %>%
+  select(OpConsultant, Pt_MRN_Pub, Pt_LName, OpDate, ConsultDate) %>%
   group_by(OpConsultant) %>%
-  mutate(Waitdays = as.numeric(OpDate - ConsultDate))
+  mutate(Waitdays = as.numeric(difftime(OpDate, ConsultDate, units = "days")))
 
 slide5.plotdata.maxwait <- slide5.plotdata %>%
   group_by(OpConsultant) %>%
@@ -406,7 +505,7 @@ slide5.plot
 #summary Stats Table
 slide6.data1 <- MM.Pres_Main %>%
   filter(Adm_Elective == 1) %>%
-  mutate(Waitdays = OpDate - ConsultDate) %>% 
+  mutate(Waitdays = difftime(OpDate, ConsultDate, units = "days")) %>% 
   group_by(Month) %>%
   summarise("Total Outpatient Cases" = n(),
             ">90 Day Wait" = percentage_func(Waitdays>90, n())) %>% 
@@ -416,13 +515,13 @@ slide6.data1 <- MM.Pres_Main %>%
 #Patients With >90 Days Wait
 slide6.data2 <- MM.Pres_Main %>%
   filter(Adm_Elective == 1) %>%
-  mutate(Waitdays = OpDate - ConsultDate) %>%
+  mutate(Waitdays = difftime(OpDate, ConsultDate, units = "days")) %>%
   filter(Waitdays > 90) %>%
-  arrange(Month, desc(Waitdays)) %>%
+  arrange(OpConsultant) %>%
   select(Pt_LName, OpConsultant, OpDescription, Month, Waitdays, "Pre-OP Comments" = PreOp_Comments)
 
-if(nrow(slide6.data2)==0){
-  slide6.data2 %<>% rbind(rep(NA))
+if (dim(slide6.data2)[1] == 0) {
+  slide6.data2[1,] <- NA
 }
 
 slide6.data1 %>% my_kable()
@@ -438,19 +537,21 @@ slide6.data2 %>% my_kable()
 slide7.data <- MM.Pres_Main %>%
   filter(Adm_Elective == 0) %>%
   group_by(Month) %>%
-  mutate(waitdays = OpDate - AdmDate) %>%
+  mutate(waitdays = difftime(OpDate, AdmDate, units = "days")) %>%
   select(Month, waitdays) %>%
-  summarise(Mean = round(mean(waitdays, na.rm = TRUE), 1), Median = median(waitdays, na.rm = TRUE)) %>%
-  rbind(list("Historical", 5.8, 4))
+  summarise(Mean = round(mean(waitdays, na.rm = TRUE), 1), Median = median(waitdays, na.rm = TRUE))
+
+slide7.data <- add_historical_values_func(slide7.data, list("Historical", 5.8, 4))
+
 
 ###Variable setup for graphing
 
 #highlight max values for each of the waiting periods
 slide7.plotdata <- MM.Pres_Main %>%
   filter(Adm_Elective == 0) %>%
-  select(OpConsultant, Pt_LName, OpDate, AdmDate) %>%
+  select(OpConsultant, Pt_LName, OpDate, AdmDate, ConsultDate) %>%
   group_by(OpConsultant) %>%
-  mutate(Waitdays = as.numeric(OpDate - AdmDate))
+  mutate(Waitdays = as.numeric(difftime(OpDate, AdmDate, units = "days")))
 
 #highlight cases of interest on the graph 
 slide7.plotdata.maxwait <- slide7.plotdata %>%
@@ -484,12 +585,12 @@ slide7.plot
 ```{r Slide8}
 
 # slide 8 ------------------------------------------
-#Outpatient Wait >10 day Patients
+#Inpatient Wait >10 day Patients
 
 #summary Stats Table
 slide8.data1 <- MM.Pres_Main %>%
   filter(Adm_Elective == 0) %>%
-  mutate(Waitdays = OpDate - ConsultDate) %>% 
+  mutate(Waitdays = difftime(OpDate, AdmDate, units = "days")) %>% 
   group_by(Month) %>%
   summarise("Total Inpatient Cases" = n(),
             ">10 Day Wait" = paste(sum(Waitdays>10, na.rm = T), ' (', percent(sum(Waitdays>10, na.rm = T)/n()), ')', sep = "")) %>%
@@ -499,10 +600,14 @@ slide8.data1 <- MM.Pres_Main %>%
 #Patients With >10 Days Wait
 slide8.data2 <- MM.Pres_Main %>%
   filter(Adm_Elective == 0) %>%
-  mutate(Waitdays = OpDate - ConsultDate) %>%
+  mutate(Waitdays = difftime(OpDate, AdmDate, units = "days")) %>%
   filter(Waitdays > 10) %>%
-  arrange(Month, desc(Waitdays)) %>%
+  arrange(OpConsultant) %>%
   select(Pt_LName, OpConsultant, OpDescription, Month, Waitdays, "Pre-OP Comments" = PreOp_Comments)
+
+if (dim(slide8.data2)[1] == 0) {
+  slide8.data2[1,] <- NA
+}
 
 slide8.data1 %>% my_kable()
 slide8.data2 %>% my_kable()
@@ -519,9 +624,7 @@ slide9.data <- MM.Pres_Main %>%
   select(Month, ICUDays, ICUReqDays) %>%
   summarise(Mean = round(mean(ICUDays, na.rm = TRUE), 1), Median = round(median(ICUDays, na.rm = TRUE), 1))
 
-slide9.data$Month <- as.character(slide9.data$Month)
-slide9.data <- slide9.data %>% 
-  rbind(list("Historical", 2.7, 1.9))
+slide9.data <- add_historical_values_func(slide9.data, list("Historical", 2.7, 1.9))
 
 
 
@@ -557,8 +660,8 @@ slide9.plotdata$Pt_LName <- factor(slide9.plotdata$Pt_LName, levels = (slide9.pl
 
 #Create plot from the data
 slide9.plot <- ggplot(slide9.plotdata, aes(Pt_LName, ICUDays)) + 
-  geom_col(fill = "#D10202") +
-  geom_col(aes(y = ICUReqDays), fill = "#D16103") +
+  geom_col(fill = "#B4B5B2") +
+#  geom_col(aes(y = ICUReqDays), fill = "#D16103") +
   facet_wrap(~Month, scales = "free_y") +
   geom_hline(aes(yintercept= 3, linetype = "3 Days"), colour="#009E73", size = 1) +     #3 day ICU Stay
   geom_hline(aes(yintercept= slide9.data[[dim(slide9.data)[1], 2]], linetype = "Historical Average"), colour="#D55E00", size = 1) +  #historical mean inpatient wait time
@@ -569,7 +672,7 @@ slide9.plot <- slide9.plot + labs(x = "", y = "ICU Length of Stay (Days)") +
   theme_minimal() +
   scale_linetype_manual(name = "", values = c(2, 1, 2), 
                         guide = guide_legend(override.aes = list(color = c("#009E73", "#000000", "#D55E00")))) +
-  geom_text(aes(label = `ICUDays label`), position=position_dodge(width=0.5), hjust=-0.05) +
+  geom_text(aes(x = Pt_LName, y = mean(slide9.plotdata[["ICUDays"]]), label = `ICUDays label`), position=position_dodge(width=0.5), hjust=-0.05) +
   scale_y_continuous(limits = c(0, max(slide9.plotdata[["ICUDays"]], na.rm = T) + 1.5)) +
   # geom_text(aes()) +
   theme(panel.grid.minor = element_blank(),
@@ -580,7 +683,7 @@ slide9.plot <- slide9.plot + labs(x = "", y = "ICU Length of Stay (Days)") +
 slide9.plot
 ```
 
-```{r ICU Timeintervals}
+```{r ICU Timeintervals, eval=FALSE, include=FALSE}
 
 #weekend highlight function
 # test <- data.frame(DATE=seq(from = min(IcuTimelineData$AdmDate),
@@ -595,7 +698,7 @@ slide9.plot
 TimelineFunc <- function(x) {
   ggplot(x, aes(y = Pt_LName)) +
   # geom_hline(aes(yintercept = Pt_LName, colour = OpConsultant)) +
-  geom_vline(xintercept = weekenddates, alpha =0.2, size = 3.5) +
+  geom_vline(xintercept = weekenddates, alpha =0.2, size = 3.0) +
   
   geom_segment(aes(x= IABP_InDt, xend = IABP_OutDt, y = Pt_LName, yend = Pt_LName,
                    linetype = "IABP Duration", text = paste("Patient Details:", Pt_LName, "\n",
@@ -608,6 +711,12 @@ TimelineFunc <- function(x) {
                    linetype = "Total Stay"), 
                    colour = "#000000") + #total stay duration (black)
   
+  geom_segment(aes(x = OpDate, xend = OpDate + (0.5*60*60*60), y = Pt_LName, yend = Pt_LName, 
+                   linetype = "Operation", text = paste("Patient Details:", Pt_LName, "\n", 
+                                                        "Operation Date:", OpDate)), 
+               colour = "#002953",
+               size = 5) +
+    
   geom_segment(aes(x = PO_ICUAdmDt, xend = PO_ICUOutDt, y = Pt_LName, yend = Pt_LName,
                    linetype = "ICU Bed Block Duration", text = paste("Patient Details:", Pt_LName, "\n", 
                                                                      "ICU Admission:", PO_ICUAdmDt, "\n",
@@ -623,12 +732,6 @@ TimelineFunc <- function(x) {
                                                                            "ICU Discharge:", PO_ICUOutDt, "\n")),
                size = 5, 
                colour = "#D16103") + #ICU stay until ready for discharge(orange)
-  
-  geom_segment(aes(x = OpDate, xend = OpDate + 0.5, y = Pt_LName, yend = Pt_LName, 
-                   linetype = "Operation", text = paste("Patient Details:", Pt_LName, "\n", 
-                                                        "Operation Date:", OpDate)), 
-               colour = "#002953",
-               size = 5) +
   
   geom_segment(aes(x = OpDate, xend = PO_ExtbDt, y = Pt_LName, yend = Pt_LName,
                    linetype = "Intubation", text = paste("Patient Details:", Pt_LName, "\n", 
@@ -654,14 +757,14 @@ TimelineFunc <- function(x) {
                  fill = "IDC Out"),
              size = 1.5) +
     
-  scale_x_date(date_breaks = "3 days", labels = date_format("%d\n%b"), date_minor_breaks = "1 day") +
+  scale_x_datetime(date_breaks = "3 days", labels = date_format("%d\n%b"), date_minor_breaks = "1 day") +
   scale_linetype_manual(name = "", values = c(1, 1, 1, 1, 1, 1),
-                        guide = guide_legend(override.aes = list(color = c("ICU Bed Block Duration" = "#D10202",
+                        guide = guide_legend(override.aes = list(color = c("IABP Duration" = "#95d4f3",
+                                                                           "ICU Bed Block Duration" = "#D10202",
                                                                            "ICU Stay (Ready for Discharge)" = "#D16103",
-                                                                           "Operation"= "#002953",
-                                                                           "Total Stay" = "#000000",
                                                                            "Intubation" = "#0B6623",
-                                                                           "IABP Duration" = "#95d4f3")))) +
+                                                                           "Operation"= "#002953",
+                                                                           "Total Stay" = "#000000")))) +
   scale_fill_manual(name = "", values = c("IDC Out" = "#000000")) +
   labs(caption = "*x-axis major ticks =  3 day intervals \n *x-axis minor ticks = 1 day intervals \n *Weekends highlighted in grey") +
   theme_minimal() +
@@ -669,15 +772,12 @@ TimelineFunc <- function(x) {
         axis.title.x = element_blank(),
         axis.line = element_line(colour = "#000000", size = 1, linetype = "solid"),
         panel.grid.major.y = element_blank(),
+        axis.ticks = element_line(colour = "black"),
         legend.position = "right", 
         legend.title = element_blank())
 }
 
 IcuTimelineData <- MM.Pres_Main
-
-IcuTimelineData[IcuTimelineData$Pt_LName == 'NEAL, H',"DischargeDate"] = as.Date('2019-02-07')
-IcuTimelineData[IcuTimelineData$Pt_LName == 'LOVETT, S',"AdmDate"] = as.Date('2019-01-01')
-IcuTimelineData[IcuTimelineData$Pt_LName == 'SHARMA, S', 'PO_IDCOutDate'] = as.Date('2019-01-24')
 
 IcuTimelineData %<>% mutate(Pt_LName = paste(OpDescription, " (", AdmConsultantInitials, ") ", Pt_LName))
 
@@ -686,7 +786,7 @@ IcuTimelineData$Pt_LName <- factor(IcuTimelineData$Pt_LName, levels = (IcuTimeli
 Min.Date <- min(MM.Pres_Main$AdmDate, na.rm = T)
 Max.Date <- max(MM.Pres_Main$DischargeDate, na.rm = T)
 
-weekenddates <- seq(as.Date(Min.Date),as.Date(Max.Date),by = 1)
+weekenddates <- seq(Min.Date, Max.Date, by = (60*60*24))
 weekenddates <- weekenddates[weekdays(weekenddates) %in% c('Saturday','Sunday')]
 
 
@@ -701,7 +801,8 @@ IcuTimelineData2 <- IcuTimelineData %>%
 
 TimelinePlot2 <- TimelineFunc((IcuTimelineData2))
 
-ggplotly(TimelinePlot1, tooltip = "text")  
+ggplotly(TimelinePlot1, tooltip = "text")
+ggplotly(TimelinePlot2, tooltip = "text")
 
 
 
@@ -726,20 +827,20 @@ TimelinePlot2
 slide10.data1 <- MM.Pres_Main %>% 
   group_by(Month) %>%
   mutate(BedBlock = (ICUDays - ICUReqDays)) %>%
-  select(Pt_LName, Pt_FName, Month, ICUReqDays, ICUDays, BedBlock) %>%
-  filter(ICUReqDays > 0) %>%
+  select(Pt_LName, Pt_FName, Month, ICUDays) %>%
+  filter(ICUDays > 0) %>%
   summarise("LOS > 3 Days" = percentage_func(ICUDays>3, n()),
-            "Historical" = rep("6.8%"),
-            "Mean Patient Bed Block (Hours)" = mean(BedBlock, na.rm = TRUE)*24,
-            "Median Patient Bed Block (Hours)" = median(BedBlock, na.rm = TRUE)*24,
-            "Max Patient Bed Block (Days)" = max(BedBlock, na.rm = TRUE)
+            "Historical" = rep("6.8%")
+#            "Mean Patient Bed Block (Hours)" = mean(BedBlock, na.rm = TRUE)*24,
+#            "Median Patient Bed Block (Hours)" = median(BedBlock, na.rm = TRUE)*24,
+#            "Max Patient Bed Block (Days)" = max(BedBlock, na.rm = TRUE)
             )
 
 #Patients With >90 Days Wait
 slide10.data2 <- MM.Pres_Main %>%
   filter(ICUDays > 3) %>%
   arrange(Month, desc(ICUDays)) %>%
-  select(Pt_LName, OpConsultant, OpCategory, Month, ICUReqDays, ICUDays, "Pre-OP Comments" = PreOp_Comments)
+  select(Pt_LName, OpConsultant, OpCategory, Month, ICUDays, "Pre-OP Comments" = PreOp_Comments)
 
 
 ```
@@ -751,19 +852,22 @@ slide10.data2 <- MM.Pres_Main %>%
 
 #Summary Stats Table
 slide11.data <- MM.Pres_Main %>%
-  mutate("Post-OP LOS" = DischargeDate - OpDate) %>%
+  mutate("Post-OP LOS" = difftime(DischargeDate, OpDate, units = "days")) %>%
   select(Month, `Post-OP LOS`) %>%
   group_by(Month) %>%
-  summarise(Mean = round(mean(`Post-OP LOS`, na.rm = TRUE), 1), Median = round(median(`Post-OP LOS`, na.rm = TRUE), 1)) %>%
-  rbind(list("Historical", 10.1, 7))
+  summarise(Mean = round(mean(`Post-OP LOS`, na.rm = TRUE), 1), Median = round(median(`Post-OP LOS`, na.rm = TRUE), 1))
+
+slide11.data <- add_historical_values_func(slide11.data, list("Historical", 10.1, 7))
 
 
 ###Variable setup for graphing
 #fundamental plotting data
 slide11.plotdata <- MM.Pres_Main %>%
-  mutate("Post-OP LOS" = as.numeric(DischargeDate - OpDate)) %>%
-  select(Pt_LName, OpConsultant, Month, "Post-OP LOS") %>%
+  mutate("Post-OP LOS" = as.numeric(difftime(DischargeDate, OpDate, units = "days"))) %>%
+  select(Pt_LName, OpDescription, OpConsultant, AdmConsultantInitials, Month, "Post-OP LOS") %>%
   arrange(Month, OpConsultant)
+
+slide11.plotdata %<>% mutate(Pt_LName = paste(OpDescription, " (", AdmConsultantInitials, ") ", Pt_LName))
 
 #Create plot from the data
 slide11.plot <- ggplot(slide11.plotdata, aes(Pt_LName, `Post-OP LOS`)) + 
@@ -795,14 +899,14 @@ slide11.plot <- slide11.plot +
 # Prolonged Post-OP LOS (>10 days)
 
 slide12.data1 <- MM.Pres_Main %>% 
-  mutate("Post-OP LOS" = DischargeDate - OpDate) %>%
+  mutate("Post-OP LOS" = difftime(DischargeDate, OpDate, units = "days")) %>%
   group_by(Month) %>%
   summarise("Count of Prolonged Stays (>10 Days)" = percentage_func(`Post-OP LOS`>10, n()),
             "Historical" = rep("26.1%"))
 
 #Patients With >10 Days Wait
 slide12.data2 <- MM.Pres_Main %>%
-  mutate("Post-OP LOS" = DischargeDate - OpDate) %>%  
+  mutate("Post-OP LOS" = round(difftime(DischargeDate, OpDate, units = "days")),2) %>%  
   filter(`Post-OP LOS` > 10) %>%
   arrange(Month, desc(`Post-OP LOS`)) %>%
   select(Pt_LName, OpConsultant, OpCategory, Month, `Post-OP LOS`, "Post-OP Comments" = PO_Comments)
@@ -817,8 +921,10 @@ slide13.data1 <- MM.Pres_Main %>%
   select(Month, PO_AMI, PO_CardArrest) %>%
   group_by(Month) %>%
   summarise("AMI" = paste(sum(PO_AMI), percent(sum(PO_AMI, na.rm = TRUE)/n()), collapse = " "),
-            "Post-OP Cardiac Arrest" = paste(sum(PO_CardArrest), percent(sum(PO_CardArrest, na.rm = TRUE)/n()), collapse = " ")) %>%
-  rbind(list("Historical (Per Month)", "0.4%", "1.6%"))
+            "Post-OP Cardiac Arrest" = paste(sum(PO_CardArrest), percent(sum(PO_CardArrest, na.rm = TRUE)/n()), collapse = " "))
+
+slide13.data1 <- add_historical_values_func(slide13.data1, list("Historical (Per Month)", "0.4%", "1.6%"))
+
 
 slide13.data2 <- MM.Pres_Main %>%
   mutate("Post-OP LOS" = DischargeDate - OpDate) %>%
@@ -846,6 +952,12 @@ slide14.data1 <- MM.Pres_Main %>%
   filter(IABP_When != 0) %>%
   spread(Month, Count) %>%
   adorn_totals("row")
+
+slide14.data1[is.na(slide14.data1)] <- 0
+
+# if(No.Months == 2 & ncol(slide14.data1 < 3) {
+#   #if months in the dataset are not present in slide14 data because second month had no IABP insertions, then insert column of 0 values.
+# }
 
 while(nrow(slide14.data1)<4) {
   if(No.Months == 2 & is.element('Pre-Op', slide14.data1[['IABP_When']]) == FALSE) { #this sequence adds any missing rows for visual purposes (2 month data)
@@ -890,9 +1002,10 @@ if(No.Months == 1) {
 
 #patients with IABP insertions
 slide14.data2 <- MM.Pres_Main %>%                #count operation categories by consultant
-  select(Pt_LName, OpConsultant, OpDescription,  Month, IABP_Indication, IABP_When) %>%
+  select(Pt_LName, OpConsultant, OpDate, OpDescription,  Month, IABP_Indication, IABP_When, PreOp_Comments) %>%
   group_by(Month) %>%
-  filter(IABP_Indication != 0)
+  filter(IABP_Indication != 0) %>% 
+  arrange(OpDate)
 
 slide14.data1 %>% my_kable()
 slide14.data2 %>% my_kable()
@@ -917,8 +1030,10 @@ slide15.data1 <- slide15.data2 %>%
   summarise(`Recieved Blood Product` = paste(sum(`Recieved_Bld_Prod`, na.rm = T), ' (', round(sum(`Recieved_Bld_Prod`, na.rm = T)/n()*100, 2),'%)', sep = ""),
             `RBC > 4 Units` = paste(sum(`RBC > 4 U`, na.rm = T), ' (', round(sum(`RBC > 4 U`, na.rm = T)/n()*100, 2),'%)', sep = ""),
             `RBC > 15 Units` = paste(sum(`RBC > 15 U`, na.rm = T), '(', round(sum(`RBC > 15 U`, na.rm = T)/n()*100, 2), '%)', sep = ""),
-            `Any Blood Prod > 15 Units` = paste(sum(`Any Blood Prod > 15 U`, na.rm = T), ' (', round(sum(`Any Blood Prod > 15 U`, na.rm = T)/n()*100, 2), '%)', sep = "")) %>%
-  rbind(list("Historical (Per Month)", "(61.8%)", "(13.1%)", "(0.9%)", "(6.5%)"))
+            `Any Blood Prod > 15 Units` = paste(sum(`Any Blood Prod > 15 U`, na.rm = T), ' (', round(sum(`Any Blood Prod > 15 U`, na.rm = T)/n()*100, 2), '%)', sep = ""))
+
+slide15.data1 <- add_historical_values_func(slide15.data1, list("Historical (Per Month)", "(61.8%)", "(13.1%)", "(0.9%)", "(6.5%)"))
+
 
 slide15.data2 %<>% 
   filter(Bld_Tot_All >= 10) %>% 
@@ -939,8 +1054,10 @@ slide16.data1 <- MM.Pres_Main %>%
   select(Month, PO_Reintubation, PO_ReturnICU) %>%
   group_by(Month) %>% 
   summarise(`Return to ICU` = paste(sum(PO_ReturnICU, na.rm = T), ' (', percent(sum(PO_ReturnICU, na.rm = T)/n()), ')', sep = ""),
-            `ReIntubation` = paste(sum(PO_Reintubation, na.rm = T), ' (', percent(sum(PO_Reintubation, na.rm = T)/n()), ')', sep = "")) %>% 
-  rbind(list("Historical (Per Month)", "2.0%", "2.2%"))
+            `ReIntubation` = paste(sum(PO_Reintubation, na.rm = T), ' (', percent(sum(PO_Reintubation, na.rm = T)/n()), ')', sep = ""))
+
+slide16.data1 <- add_historical_values_func(slide16.data1, list("Historical (Per Month)", "2.0%", "2.2%"))
+
 
 slide16.data2 <- MM.Pres_Main %>% 
   filter(PO_Reintubation == 1) %>% 
@@ -968,8 +1085,9 @@ slide16.data3 %>% my_kable()
 
 slide17.data1 <- MM.Pres_Main %>% 
   group_by(Month) %>% 
-  summarise(`Return to Theatre (Total Patients)` = paste(sum(PO_RTT, na.rm = T), ' (', percent(sum(PO_RTT, na.rm = T)/n()), ')', sep = "")) %>% 
-  rbind(list("Historical (Per Month)", "5.1%"))
+  summarise(`Return to Theatre (Total Patients)` = paste(sum(PO_RTT, na.rm = T), ' (', percent(sum(PO_RTT, na.rm = T)/n()), ')', sep = ""))
+
+slide17.data1 <- add_historical_values_func(slide17.data1, list("Historical (Per Month)", "5.1%"))
 
 slide17.data2 <- MM.RTT
 
@@ -985,8 +1103,9 @@ slide17.data2 %>% my_kable()
 if (nrow(MM.Inf) != 0) {
   slide18.data1 <- MM.Inf %>% 
     group_by(Month) %>% 
-    summarise(`Total Patients` = paste(n(), ' (', percent(n() / min(TotalCasesMonthly)), ')', sep = "")) %>% 
-    rbind(list("Historical (Per Month)", rep("10.2%")))
+    summarise(`Total Patients` = paste(n(), ' (', percent(n() / min(TotalCasesMonthly)), ')', sep = ""))
+  
+  slide18.data1 <- add_historical_values_func(slide18.data1, list("Historical (Per Month)", rep("10.2%")))
   
   slide18.data2 <- MM.Inf %>%
     group_by(Month) %>%
@@ -1001,13 +1120,14 @@ if (nrow(MM.Inf) != 0) {
               "MRSA" = paste(sum(InfSite=="MRSA"), ' (', percent(sum(InfSite=="MRSA") / min(TotalCasesMonthly)), ')', sep = ""),
               "Sterile Sternal Dehiscence" = paste(sum(InfSite=="Sterile Sternal Dehiscence"), ' (', percent(sum(InfSite=="Sterile Sternal Dehiscence") / min(TotalCasesMonthly)), ')', sep = ""),
               "Other" = paste(sum(InfSite=="Other"), ' (', percent(sum(InfSite=="Other") / min(TotalCasesMonthly)), ')', sep = "")
-              ) %>%
-    rbind(list("Historical (Per Month)", "0.7%", "0.3%", "1.4%", "0.0%", "0.2%", "0.5%", "1.2%", "3.0%", "1.8%", "0.4%", "-"))
+              )
+  slide18.data2 <- add_historical_values_func(slide18.data2, list("Historical (Per Month)", "0.7%", "0.3%", "1.4%", "0.0%", "0.2%", "0.5%", "1.2%", "3.0%", "1.8%", "0.4%", "-"))
 } else {
   slide18.data1 <- MM.Pres_Main %>% 
     group_by(Month) %>% 
-    summarise(`Total Patients` = paste("0", ' (0%)', sep = "")) %>% 
-    rbind(list("Historical (Per Month)", rep("10.2%")))
+    summarise(`Total Patients` = paste("0", ' (0%)', sep = ""))
+  
+    slide18.data1 <- add_historical_values_func(slide18.data1, list("Historical (Per Month)", rep("10.2%")))
   
   slide18.data2 <- MM.Pres_Main %>% 
     group_by(Month) %>% 
@@ -1021,8 +1141,9 @@ if (nrow(MM.Inf) != 0) {
               "Pneumonia" = 0,
               "MRSA" = 0,
               "Sterile Sternal Dehiscence" = 0,
-              "Other" = 0) %>% 
-    rbind(list("Historical (Per Month)", "0.7%", "0.3%", "1.4%", "0.0%", "0.2%", "0.5%", "1.2%", "3.0%", "1.8%", "0.4%", "-"))
+              "Other" = 0)
+  
+    slide18.data2 <- add_historical_values_func(slide18.data2, list("Historical (Per Month)", "0.7%", "0.3%", "1.4%", "0.0%", "0.2%", "0.5%", "1.2%", "3.0%", "1.8%", "0.4%", "-"))
   }
 
 slide18.data1 %>% my_kable()
@@ -1060,8 +1181,9 @@ slide20.data1 <- MM.Pres_Main %>%
             `Temporary Pacing` = paste(sum(PO_TempPacing, na.rm = T), ' (', percent(sum(PO_TempPacing, na.rm = TRUE) / n()), ')', sep = ""),
             `Cardioversion` = paste(sum(PO_DCCV, na.rm = T), ' (', percent(sum(PO_DCCV, na.rm = TRUE) / n()), ')', sep = ""),
             `PPM Inserted` = paste(sum(PO_PPMforHB, na.rm = T)+sum(PO_PPMforBrady, na.rm = T), ' (', percent((sum(PO_PPMforHB, na.rm = T)+sum(PO_PPMforBrady, na.rm = T)) / n()), ')', sep = ""),
-            ) %>% 
-  rbind(list("Historical (Per Month)", "23.8%", "3.4%", "4.5%", "3.7%"))
+            )
+
+slide20.data1 <- add_historical_values_func(slide20.data1, list("Historical (Per Month)", "23.8%", "3.4%", "4.5%", "3.7%"))
 
 slide20.data1 %>% my_kable()
 ```
@@ -1076,8 +1198,9 @@ slide21.data1 <- MM.Pres_Main %>%
   summarise(`Stroke Permanent (>72 hrs)` = paste(sum(PO_Stroke, na.rm = T), ' (', percent(sum(PO_Stroke, na.rm = T) / n()), ')', sep = ""),
             `Stroke Transient (<72 hrs)` = paste(sum(PO_TIA, na.rm = T), ' (', percent(sum(PO_TIA, na.rm = T) / n()), ')', sep = ""),
             `Continuous Coma (>24 hrs)` = paste(sum(PO_COMA, na.rm = T), ' (', percent(sum(PO_COMA, na.rm = T) / n()), ')', sep = "")
-  ) %>% 
-  rbind(list("Historical (Per Month)", "0.6%", "0.5%", "0.1%"))
+  )
+
+slide21.data1 <- add_historical_values_func(slide21.data1, list("Historical (Per Month)", "0.6%", "0.5%", "0.1%"))
 
 slide21.data2 <- MM.Pres_Main %>% 
   filter(PO_Stroke == 1 | PO_TIA == 1 | PO_COMA == 1) %>% 
@@ -1110,8 +1233,9 @@ slide22.data1 <- MM.Pres_Main %>%
             `GIT Complictaion` = paste(sum(PO_GITCompl, na.rm = T), ' (', percent(sum(PO_GITCompl, na.rm = T) / n()), ') ', str_c(str_replace_na(PO_GITType[!is.na(PO_GITType)]), collapse = ", "), sep = ""),
             `Cardiogenic Shock` = paste(sum(PO_CardioShock, na.rm = T), ' (', percent(sum(PO_CardioShock, na.rm = T) / n()), ')', sep = ""),
             `Multi-Organ Dysfunction` = paste(sum(PO_MODS, na.rm = T), ' (', percent(sum(PO_MODS, na.rm = T) / n()), ')', sep = "")
-  ) %>% 
-  rbind(list("Historical (Per Month)",
+  ) 
+
+slide22.data1 <- add_historical_values_func(slide22.data1, list("Historical (Per Month)",
              "",
              "13.2%",
              "2.7%",
@@ -1138,13 +1262,29 @@ slide22.data1 %>% my_kable()
 
 slide23.data1 <- MM.Pres_Main %>%
   group_by(Month) %>% 
-  summarise(`Readmitted <= 30 Days` = paste(sum(FU_ReAdm30d, na.rm = T), ' (', percent(sum(FU_ReAdm30d, na.rm = T)/n(), accuracy = 0.1), ')', sep = "")) %>% 
-  rbind(list("Historical (Per Month)", "3.1%"))
+  summarise(`Readmitted <= 30 Days` = paste(sum(FU_ReAdm30d, na.rm = T), ' (', percent(sum(FU_ReAdm30d, na.rm = T)/n(), accuracy = 0.1), ')', sep = ""))
+
+slide23.data1 <- add_historical_values_func(slide23.data1, list("Historical (Per Month)", "3.1%"))
   
 slide23.data2 <- MM.ReAdm
 
 slide23.data2 %>% my_kable()
 ```
+
+
+
+
+```{r Test AREA}
+
+MM.Pres_Main %>% ggplot(aes(OpDate, CPB_PerfTime)) +
+  geom_point(aes(colour = OpCategory)) +
+  geom_line() +
+  theme_minimal() +
+  scale_x_datetime(date_breaks = "3 days", labels = date_format("%d\n%b"), date_minor_breaks = "1 day")
+```
+
+
+
 
 
 ```{r slide_variables}
@@ -1176,6 +1316,9 @@ read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
 
 read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   layout_properties(layout = "Table Graph and Small Title")
+
+read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
+  layout_properties(layout = "Triple Table and Small Title")
 
 
 annotate_base(path = "Powerpoint_Templates/piktochart.pptx", output_file = "annotated_layout_base_edit.pptx")
@@ -1271,14 +1414,14 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_text(type = "sldNum", str = "9" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
   
-  # Slide 10 - Patient Timeline Graph:
-  add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
-  ph_with_text(type = "title", index=1,str = "Patient Timeline") %>% 
-  ph_with_gg(type = "pic", index = 1, value = TimelinePlot1) %>%
-  ph_with_gg(type = "chart", index = 1, value = TimelinePlot2) %>%
-  ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "10" ) %>%
-  ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
+  # # Slide 10 - Patient Timeline Graph:
+  # add_slide(layout = "Table Graph and Small Title", master = "Office Theme") %>%
+  # ph_with_text(type = "title", index=1,str = "Patient Timeline") %>% 
+  # ph_with_gg(type = "pic", index = 1, value = TimelinePlot1) %>%
+  # ph_with_gg(type = "chart", index = 1, value = TimelinePlot2) %>%
+  # ph_with_text(type = "ftr", str = myftr ) %>%
+  # ph_with_text(type = "sldNum", str = "10" ) %>%
+  # ph_with_text(type = "dt", str = format(Sys.Date(),"%B %d,%Y")) %>%
   
   # Slide 11 - Prolonged ICU Stay (>3 days):
   add_slide(layout = "Double Table Small Title", master = "Office Theme") %>%
@@ -1286,7 +1429,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_table(type = "body", index=2, value = slide10.data1) %>%
   ph_with_table(type = "body", index=1, value = slide10.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "11" ) %>%
+  ph_with_text(type = "sldNum", str = "10" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
   
   # Slide 12 - Post-OP LOS (days):
@@ -1295,7 +1438,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_gg(type = "pic", index = 1, value = slide11.plot) %>%
   ph_with_table(type = "body", index = 1, value = slide11.data) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "12" ) %>%
+  ph_with_text(type = "sldNum", str = "11" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
   
   # Slide 13 - Prolonged Post-OP LOS (>10 days):
@@ -1304,7 +1447,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_table(type = "body", index=2, value = slide12.data1) %>%
   ph_with_table(type = "body", index=1, value = slide12.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "13" ) %>%
+  ph_with_text(type = "sldNum", str = "12" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%  
 
   # Slide 14 - Post-op AMI or Cardiac Arrest:
@@ -1313,7 +1456,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_table(type = "body", index=2, value = slide13.data1) %>%
   ph_with_table(type = "body", index=1, value = slide13.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "14" ) %>%
+  ph_with_text(type = "sldNum", str = "13" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>%
 
   # slide 15 - IABP Use
@@ -1322,7 +1465,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_table(type = "body", index=2, value = slide14.data1) %>%
   ph_with_table(type = "body", index=1, value = slide14.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "15" ) %>%
+  ph_with_text(type = "sldNum", str = "14" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
 
   # slide 16 - Transfusions
@@ -1331,17 +1474,17 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_table(type = "body", index=2, value = slide15.data1) %>%
   ph_with_table(type = "body", index=1, value = slide15.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "16" ) %>%
+  ph_with_text(type = "sldNum", str = "15" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
 
   # slide 17 - Reintubation & Return to ICU
   add_slide(layout = "Triple Table and Small Title", master = "Office Theme") %>%
   ph_with_text(type = "title", index=1,str = "Reintubation & Return to ICU") %>% 
   ph_with_table(type = "body", index=1, value = slide16.data1) %>%
-  ph_with_table(type = "body", index=2, value = slide16.data2) %>%
-  ph_with_table(type = "body", index=3, value = slide16.data3) %>%
+  ph_with_table(type = "chart", index=1, value = slide16.data2) %>%
+  ph_with_table(type = "tbl", index=1, value = slide16.data3) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "17" ) %>%
+  ph_with_text(type = "sldNum", str = "16" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
 
   # slide 18 - Return to Theatre
@@ -1350,7 +1493,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_table(type = "body", index=2, value = slide17.data1) %>%
   ph_with_table(type = "body", index=1, value = slide17.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "18" ) %>%
+  ph_with_text(type = "sldNum", str = "17" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
 
   # slide 19 - Infections
@@ -1359,7 +1502,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_table(type = "body", index=2, value = slide18.data1) %>%
   ph_with_table(type = "body", index=1, value = slide18.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "19" ) %>%
+  ph_with_text(type = "sldNum", str = "18" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
 
   # slide 20 - Infection details
@@ -1367,7 +1510,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_text(type = "title", index=1, str = "Infection details") %>% 
   ph_with_table(type = "body", index=1, value = slide19.data1) %>%
   ph_with_text(type = "ftr", str = myftr) %>%
-  ph_with_text(type = "sldNum", str = "20") %>%
+  ph_with_text(type = "sldNum", str = "19") %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
     
   # slide 21 - Atrial Fibrillation & Arrhythmias
@@ -1375,7 +1518,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_text(type = "title", index=1, str = "Atrial Fibrillation & Arrhythmias") %>% 
   ph_with_table(type = "body", index=1, value = slide20.data1) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "21" ) %>%
+  ph_with_text(type = "sldNum", str = "20" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
   
   # slide 22 - Neurological Events
@@ -1384,7 +1527,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_table(type = "body", index=2, value = slide21.data1) %>%
   ph_with_table(type = "body", index=1, value = slide21.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "22" ) %>%
+  ph_with_text(type = "sldNum", str = "21" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
   
   # slide 23 - Other Post-Op Complications
@@ -1392,7 +1535,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_text(type = "title", index=1, str = "Other Post-Op Complications") %>% 
   ph_with_table(type = "body", index=1, value = slide22.data1) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "23" ) %>%
+  ph_with_text(type = "sldNum", str = "22" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y")) %>% 
   
   # slide 24 - Readmitted <= 30 days 
@@ -1401,7 +1544,7 @@ doc <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
   ph_with_table(type = "body", index=2, value = slide23.data1) %>%
   ph_with_table(type = "body", index=1, value = slide23.data2) %>%
   ph_with_text(type = "ftr", str = myftr ) %>%
-  ph_with_text(type = "sldNum", str = "24" ) %>%
+  ph_with_text(type = "sldNum", str = "23" ) %>%
   ph_with_text(type = "dt", str =format(Sys.Date(),"%B %d,%Y"))
   
   # Print to save powerpoint
@@ -1423,4 +1566,9 @@ mypres <- read_pptx("Powerpoint_Templates/piktochart.pptx") %>%
 layout_properties ( x = mypres, layout = "Title and Content", master = "Office Theme" )
 ```
 
+
+
+```{r}
+#round the decimal places for the post OP LOS
+```
 
