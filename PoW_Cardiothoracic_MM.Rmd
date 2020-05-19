@@ -84,7 +84,7 @@ add_historical_values_func <- function(slide_data, historical_list) {
 #change this file accordingly >>>>D:/M&M_Query_Data/ "insert pathfile here"
 
 #PathFile <- "D:M&M_Query_Data_Laura/Oct_Nov/"
-Pathfile <- "C:\\Users\\Break\\Desktop\\June_July\\"
+Pathfile <- "C:\\Users\\Break\\Desktop\\September_MM_data\\"
 
 #####
 
@@ -234,6 +234,10 @@ monthtotals <- MM.Pres_Main %>%
   arrange(Month) %>% 
   select(Month, Total)
 
+# Determine how many dates selected ---------------
+First.Month <- min(MM.Pres_Main$Num_Months)
+Second.Month <- max(MM.Pres_Main$Num_Months)
+No.Months <- Second.Month - First.Month + 1
 
 if(nrow(MM.Inf) != 0) {
   if(No.Months == 1) {
@@ -242,11 +246,6 @@ if(nrow(MM.Inf) != 0) {
     MM.Inf$TotalCasesMonthly = monthtotals[[2, 2]]
   }
 }
-
-# Determine how many dates selected ---------------
-First.Month <- min(MM.Pres_Main$Num_Months)
-Second.Month <- max(MM.Pres_Main$Num_Months)
-No.Months <- Second.Month - First.Month + 1
 
 Year <- format(mean(MM.Pres_Main$OpDate), "%Y")
 
