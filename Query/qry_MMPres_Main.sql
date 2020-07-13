@@ -30,7 +30,9 @@ SELECT
  tbl_Admission.AdmDate,
  tbl_Admission.ConsultDate,
  tbl_Admission.DischargeDate,
- tbl_CPB.CPB_PerfTime,
+ tbl_CPB.CPB_StartTime,
+ tbl_CPB.CPB_EndTime,
+ (CPB_EndTime-CPB_StartTime) AS CPB_PerfTime,
  tbl_Admission.Adm_Comments,
  tbl_PreOpStatus.PreOp_Comments,
  tbl_IntraOpSupport.IABP,
@@ -42,16 +44,41 @@ SELECT
  tbl_Transfusion.Bld_Tot_Cryo,
  tbl_Transfusion.Bld_Tot_FVIIa_mg,
  tbl_Transfusion.Bld_Tot_PTX,
- tbl_PostOpStatus.PO_ICUAdmDt,
- tbl_PostopStatus.PO_ICUAdmTm,
+ CAST(CONCAT(
+			 DATE_FORMAT(tbl_PostOpStatus.PO_ICUAdmDt, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_PostOpStatus.PO_ICUAdmTm, "%H:%i:%s")
+			 ) AS DATETIME) AS `PO_ICUAdmDt`,
+ CAST(CONCAT(
+			 DATE_FORMAT(tbl_IntraOpSupport.IntubationDt, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_IntraOpSupport.IntubationTm, "%H:%i:%s")
+			 ) AS DATETIME) AS `IntubationDt`,
+ CAST(CONCAT(
+			 DATE_FORMAT(tbl_PostOpStatus.PO_ExtbDt, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_postopstatus.PO_ExtbTm, "%H:%i:%s")
+			 ) AS DATETIME) AS `PO_ExtbDt`,
+ TIMEDIFF(
+			CAST(CONCAT(
+						DATE_FORMAT(tbl_PostOpStatus.PO_ExtbDt, "%Y-%m-%d"), " ",
+						DATE_FORMAT(tbl_postopstatus.PO_ExtbTm, "%H:%i:%s")
+						) AS DATETIME),
+			CAST(CONCAT(
+						DATE_FORMAT(tbl_PostOpStatus.PO_ICUAdmDt, "%Y-%m-%d"), " ",
+						DATE_FORMAT(tbl_postopstatus.PO_ICUAdmTm, "%H:%i:%s")
+						) AS DATETIME)
+			) AS POST_OP_VENT_DURATION,
+ IF(TIMEDIFF(CAST(CONCAT(
+						  DATE_FORMAT(tbl_PostOpStatus.PO_ExtbDt, "%Y-%m-%d"), " ",
+						  DATE_FORMAT(tbl_postopstatus.PO_ExtbTm, "%H:%i:%s")
+						  ) AS DATETIME),
+				   CAST(CONCAT(
+							   DATE_FORMAT(tbl_PostOpStatus.PO_ICUAdmDt, "%Y-%m-%d"), " ",
+							   DATE_FORMAT(tbl_postopstatus.PO_ICUAdmTm, "%H:%i:%s")
+							   ) AS DATETIME)) > '24:00:00',
+			  1, 0) AS `PO_Vent>24hr`,
  tbl_PostOpStatus.IABP_InDt,
  tbl_PostOpStatus.IABP_InTm,
  tbl_PostOpStatus.IABP_OutDt,
  tbl_PostOpStatus.IABP_OutTm,
- tbl_IntraOpSupport.IntubationDt,
- tbl_IntraOpSupport.IntubationTm,
- tbl_PostOpStatus.PO_ExtbDt,
- tbl_PostOpStatus.PO_ExtbTm,
  tbl_PostOpStatus.PO_Drain4Hr,
  tbl_PostOpStatus.PO_Drain6Hr,
  tbl_PostOpStatus.PO_Drain24Hr,
@@ -79,25 +106,6 @@ SELECT
  tbl_PostOpStatus.PO_PPMforHB,
  tbl_PostOpStatus.PO_PPMforBrady,
  tbl_PostOpStatus.PO_Infection,
- TIMEDIFF(
-			CAST(CONCAT(
-						DATE_FORMAT(tbl_PostOpStatus.PO_ExtbDt, "%Y-%m-%d"), " ",
-						DATE_FORMAT(tbl_postopstatus.PO_ExtbTm, "%H:%i:%s")
-						) AS DATETIME),
-			CAST(CONCAT(
-						DATE_FORMAT(tbl_PostOpStatus.PO_ICUAdmDt, "%Y-%m-%d"), " ",
-						DATE_FORMAT(tbl_postopstatus.PO_ICUAdmTm, "%H:%i:%s")
-						) AS DATETIME)
-			) AS POST_OP_VENT_DURATION,
- IF(TIMEDIFF(CAST(CONCAT(
-						  DATE_FORMAT(tbl_PostOpStatus.PO_ExtbDt, "%Y-%m-%d"), " ",
-						  DATE_FORMAT(tbl_postopstatus.PO_ExtbTm, "%H:%i:%s")
-						  ) AS DATETIME),
-				   CAST(CONCAT(
-							   DATE_FORMAT(tbl_PostOpStatus.PO_ICUAdmDt, "%Y-%m-%d"), " ",
-							   DATE_FORMAT(tbl_postopstatus.PO_ICUAdmTm, "%H:%i:%s")
-							   ) AS DATETIME)) > '24:00:00',
-			  1, 0) AS `PO_Vent>24hr`,
  tbl_PostOpStatus.PO_PE,
  tbl_PostOpStatus.PO_PTX,
  tbl_PostOpStatus.PO_HTX,
@@ -152,4 +160,5 @@ FROM
  LEFT JOIN domains AS TFHospital ON tbl_Admission.Adm_TransfHosp = TFHospital.code AND TFHospital.domain = 'TFHospital'
  LEFT JOIN domains AS AdmHospital ON tbl_Admission.Adm_Hospital = AdmHospital.code AND AdmHospital.domain = 'Hospital'
 
-WHERE cts_db.tbl_Operation.OpDate BETWEEN CAST({MinDate} AS DATE) AND CAST({MaxDate} AS DATE);
+-- WHERE cts_db.tbl_Operation.OpDate BETWEEN CAST({MinDate} AS DATE) AND CAST({MaxDate} AS DATE);
+WHERE cts_db.tbl_Operation.OpDate BETWEEN CAST('2019-05-01' AS DATE) AND CAST('2019-05-31' AS DATE);

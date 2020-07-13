@@ -6,7 +6,7 @@ SELECT CONCAT(tbl_Patient.Pt_LName, ' (', tbl_ProcedureStaff.Dr_Initials, ') ', 
  Inf_Organism,
  OpDate
  
-FROM 
+FROM
  tbl_Patient 
  RIGHT JOIN tbl_Admission ON tbl_Patient.PatientID = tbl_Admission.PatientID
  RIGHT JOIN tbl_Operation ON tbl_Admission.AdmissionID = tbl_Operation.AdmissionID

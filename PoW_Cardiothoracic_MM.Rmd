@@ -116,7 +116,7 @@ getSQL <- function(filepath){
 
 ```{r DataCleaning, echo = FALSE, message = FALSE, results = 'hide'}
 
-pass = rstudioapi::askForPassword("Database password")
+# pass = rstudioapi::askForPassword("Database password")
 
 #Database connecion string
 con <- dbConnect(RMariaDB::MariaDB(),
@@ -176,28 +176,18 @@ if(DatabaseConnection == TRUE){
 #dates/times
 
 #Admission DATE/TIME ***************************
-MM.Pres_Main$AdmDate <- as.POSIXct(MM.Pres_Main$AdmDate, format = "%d/%m/%Y")
+MM.Pres_Main$AdmDate <- as.Date(MM.Pres_Main$AdmDate, format = "%d/%m/%Y")
 
 #Consult DATE/TIME *************************
-MM.Pres_Main$ConsultDate <- as.POSIXct(MM.Pres_Main$ConsultDate, format = "%d/%m/%Y")
-MM.Pres_Main$ConsultTime <- as.POSIXct(MM.Pres_Main$ConsultDate, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$ConsultDate <- as.POSIXct(paste(MM.Pres_Main$ConsultDate, MM.Pres_Main$ConsultTime), format="%Y-%m-%d %H:%M:%S")
+MM.Pres_Main$ConsultDate <- as.Date(MM.Pres_Main$ConsultDate, format = "%d/%m/%Y")
 
-MM.Pres_Main %<>% mutate(ConsultDate = if_else(is.na(ConsultDate), AdmDate, ConsultDate))
-
+# MM.Pres_Main %<>% mutate(ConsultDate = if_else(is.na(ConsultDate), AdmDate, ConsultDate))
 
 #Operation DATE/TIME ************************
-MM.Pres_Main$OpDate <- as.POSIXct(MM.Pres_Main$OpDate, format = "%d/%m/%Y")
-MM.Pres_Main$OpTime <- as.POSIXct(MM.Pres_Main$OpDate, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$OpDate <- as.POSIXct(paste(MM.Pres_Main$OpDate, MM.Pres_Main$OpTime), format="%Y-%m-%d %H:%M:%S")
+MM.Pres_Main$OpDate <- as.Date(MM.Pres_Main$OpDate, format = "%d/%m/%Y")
 
-#Discharge DATE/TIME *************************
+#Discharge DATE/TIME ************************
 MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, format = "%d/%m/%Y")
-MM.Pres_Main$DischargeTime <- as.POSIXct(MM.Pres_Main$DischargeDate, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$DischargeDate <- as.POSIXct(paste(MM.Pres_Main$DischargeDate, MM.Pres_Main$DischargeTime), format="%Y-%m-%d %H:%M:%S")
 
 #ICU admission DATE/TIME **********************
 MM.Pres_Main$PO_ICUAdmDt <- as.Date(MM.Pres_Main$PO_ICUAdmDt, format = "%d/%m/%Y")
@@ -264,12 +254,6 @@ MM.Pres_Main$PO_ICUOutDt <- as.Date(MM.Pres_Main$PO_ICUOutDt, format = "%d/%m/%Y
 MM.Pres_Main$PO_ICUOutTm <- as.POSIXct(MM.Pres_Main$PO_ICUOutTm, format = "%d/%m/%Y %H:%M:%S") %>%
    strftime(format="%H:%M:%S")
 MM.Pres_Main$PO_ICUOutDt <- as.POSIXct(paste(MM.Pres_Main$PO_ICUOutDt, MM.Pres_Main$PO_ICUOutTm), format="%Y-%m-%d %H:%M:%S")
- 
-
-###DROP TIME VARIABLES (Combined above)
-drops <- c("PO_ICUAdmTm")
-MM.Pres_Main <- MM.Pres_Main[ , !(names(MM.Pres_Main) %in% drops)]
-
 
 
 MM.Pres_Main$PreOp_Comments <- as.character(MM.Pres_Main$PreOp_Comments)
@@ -289,25 +273,41 @@ MM.Inf$OpDate <- as.Date(MM.Inf$OpDate, "%d/%m/%Y")
 MM.ReAdm$OpDate <- format(as.Date(MM.ReAdm$OpDate, "%d/%m/%Y"), "%d/%m/%Y")
 MM.RTT$OpDate <- as.Date(MM.RTT$OpDate, "%d/%m/%Y")
 
-#create date number variable
+##create date number variable
 MM.Pres_Main$Num_Months <- month(MM.Pres_Main$OpDate) - month(min(MM.Pres_Main$OpDate)) + 1
 MM.Inf$Num_Months <- month(MM.Inf$OpDate) - month(min(MM.Inf$OpDate)) + 1
 
-#add month variable
+
+###DROP TIME VARIABLES (Combined above)####
+
+
+drops <- c("PO_ICUAdmTm", "PO_ICUOutTm", "PO_RFW", "IABP_OutTm", "IABP_InTm", "IntubationTm", "PO_ExtbTm", "PO_IDC_OutTime", "PO_RFWTm", "PO_ReIntbTm", "PO_ReExtbTm")
+MM.Pres_Main <- MM.Pres_Main[ , !(names(MM.Pres_Main) %in% drops)]
+
+
+####CALCULATED VARIABLES####
+
+
+##add month variable
 MM.Pres_Main %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE))
 MM.Inf %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE)) 
 
+MM.Pres_Main %<>% mutate(`PO_VENT_length_TEST` = PO_ExtbDt-PO_ICUAdmDt)
+# MM.Pres_Main %<>% mutate(`PO_Vent>24hr` = if_else(`POST_OP_VENT_DURATION`>=24, 1, 0))
 
-MM.Pres_Main %<>% mutate(`PO_Vent>24hr` = if_else(PO_ExtbDt-IntubationDt>=24, 1, 0))
 
-#add the total caseload (per month) to inf table
+
+
+
+
+##add the total caseload (per month) to inf table
 monthtotals <- MM.Pres_Main %>%
   group_by(Month) %>% 
   summarise(Total = n()) %>% 
   arrange(Month) %>% 
   select(Month, Total)
 
-# Determine how many dates selected ---------------
+## Determine how many dates selected ---------------
 First.Month <- min(MM.Pres_Main$Num_Months)
 Second.Month <- max(MM.Pres_Main$Num_Months)
 No.Months <- Second.Month - First.Month + 1

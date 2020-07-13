@@ -1,0 +1,8 @@
+----------------------------------------------------
+
+CPB start time (DateTime) >> (Time)
+CPB end time (DateTime) >> (Time)
+**Potentially Add Opdate Into the CPB date section and make this field a date time?
+
+----------------------------------------------------
+Combine All Separate Date, Time Feilds into single DateTime Fields 
