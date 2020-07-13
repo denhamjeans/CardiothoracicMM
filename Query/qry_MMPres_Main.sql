@@ -1,5 +1,3 @@
-USE cts_db;
-
 SELECT 
  tbl_Patient.PatientID,
  tbl_Admission.AdmissionID,
@@ -9,7 +7,7 @@ SELECT
  UCASE(CONCAT(tbl_Patient.Pt_LName, ", ", LEFT(tbl_Patient.Pt_FName,1))) AS Pt_LName,
  tbl_Patient.Pt_FName,
  tbl_Patient.Pt_MRN_Pub,
- tbl_Operation.OpDate,
+ tbl_operation.OpDate,
  ref_Procedure.OpDescription,
  ref_Procedure.OpCategory,
  ref_Procedure.Other,
@@ -45,6 +43,7 @@ SELECT
  tbl_Transfusion.Bld_Tot_FVIIa_mg,
  tbl_Transfusion.Bld_Tot_PTX,
  tbl_PostOpStatus.PO_ICUAdmDt,
+ tbl_PostopStatus.PO_ICUAdmTm,
  tbl_PostOpStatus.IABP_InDt,
  tbl_PostOpStatus.IABP_InTm,
  tbl_PostOpStatus.IABP_OutDt,
@@ -152,3 +151,5 @@ FROM
  LEFT JOIN domains AS DeathLocation ON tbl_30dFollowUp.FU_DeathLocation = DeathLocation.code AND DeathLocation.domain = 'DeathLocation'
  LEFT JOIN domains AS TFHospital ON tbl_Admission.Adm_TransfHosp = TFHospital.code AND TFHospital.domain = 'TFHospital'
  LEFT JOIN domains AS AdmHospital ON tbl_Admission.Adm_Hospital = AdmHospital.code AND AdmHospital.domain = 'Hospital'
+
+WHERE cts_db.tbl_Operation.OpDate BETWEEN CAST({MinDate} AS DATE) AND CAST({MaxDate} AS DATE);

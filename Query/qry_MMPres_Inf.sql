@@ -1,5 +1,4 @@
-USE cts_db;
-SELECT CONCAT(tbl_Patient.Pt_LName, " (", tbl_ProcedureStaff.Dr_Initials, ") ", ref_Procedure.OpDescription) AS 'Patient Details',
+SELECT CONCAT(tbl_Patient.Pt_LName, ' (', tbl_ProcedureStaff.Dr_Initials, ') ', ref_Procedure.OpDescription) AS 'Patient Details',
  InfSite.label AS 'InfSite', 
  AccessSiteInfDepth.label AS AccessInfDepth,
  DonorSiteInfDepth.label AS DonorSiteDepth,
@@ -18,4 +17,4 @@ FROM
  LEFT JOIN domains AS DonorSiteInfDepth ON DonorSiteInfDepth.code = tbl_Infection.Inf_DepthDonor AND DonorSiteInfDepth.domain = "InfDepth" 
  LEFT JOIN tbl_ProcedureStaff ON tbl_Admission.Adm_Consultant = tbl_ProcedureStaff.StaffID
 
-WHERE cts_db.tbl_Operation.OpDate BETWEEN CAST('2018-01-01' AS DATE) AND CAST('2019-07-31' AS DATE);
+WHERE cts_db.tbl_Operation.OpDate BETWEEN CAST({MinDate} AS DATE) AND CAST({MaxDate} AS DATE);
