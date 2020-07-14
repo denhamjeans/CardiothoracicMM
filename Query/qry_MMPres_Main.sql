@@ -1,3 +1,4 @@
+USE cts_db;
 SELECT 
  tbl_Patient.PatientID,
  tbl_Admission.AdmissionID,
@@ -7,15 +8,27 @@ SELECT
  UCASE(CONCAT(tbl_Patient.Pt_LName, ", ", LEFT(tbl_Patient.Pt_FName,1))) AS Pt_LName,
  tbl_Patient.Pt_FName,
  tbl_Patient.Pt_MRN_Pub,
+ timestampdiff(YEAR, tbl_Patient.Pt_DOB, tbl_Operation.OpDate) AS EuroScore_age,
+ IF(Sex.label='Female', 1, 0) AS EuroScore_sex,
+ tbl_preopstatus.PreOp_NYHA AS EuroScore_nyha,
+ tbl_preopstatus.PreOp_Dialysis AS EuroScore_ri_dialysis,
+ CASE WHEN Sex.label = 'Female' THEN 
+  ROUND((140-(timestampdiff(YEAR, tbl_Patient.Pt_DOB, tbl_Operation.OpDate)))*tbl_Operation.Weight*0.85/(tbl_pathology.Path_PreOpCreat*1000*0.0113*72),2)
+ WHEN Sex.label = 'Male' THEN
+  ROUND((140-(timestampdiff(YEAR, tbl_Patient.Pt_DOB, tbl_Operation.OpDate)))*tbl_Operation.Weight/(tbl_pathology.Path_PreOpCreat*1000*0.0113*72), 2)
+ ELSE NULL END AS EuroScore_ri_creatinine_clearance,
+ tbl_preopstatus.PreOp_PVD AS EuroScore_eca,
+ NULL AS EuroScore_pm,
+ tbl_prevcardproc.Prev_CardiacSurgery AS EuroScore_pcs,
+ AS EuroScore_cld,
+ tbl_
  tbl_operation.OpDate,
  ref_Procedure.OpDescription,
  ref_Procedure.OpCategory,
  ref_Procedure.Other,
  tbl_Operation.Op_StatusPOW,
  tbl_Operation.Op_Incidence,
- tbl_Operation.Op_Age,
- tbl_IntraOpSupport.EUROScore,
- tbl_IntraOpSupport.EUROScoreLogistic,
+ timestampdiff(YEAR, tbl_Patient.Pt_DOB, tbl_Operation.OpDate) AS Op_Age,
  tbl_ProcedureStaff.Dr_LName AS OpConsultant,
  tbl_ProcedureStaff.Dr_Initials AS OpConsultantInitials,
  tbl_ProcedureStaff_1.Dr_LName AS AdmConsultant,
@@ -148,9 +161,11 @@ FROM
  LEFT JOIN tbl_PreOpStatus ON tbl_PreOpStatus.OperationID = tbl_Operation.OperationID
  LEFT JOIN tbl_IntraOpSupport ON tbl_Operation.OperationID = tbl_IntraOpSupport.OperationID
  LEFT JOIN tbl_ProcedureStaff ON tbl_Operation.Op_Consultant = tbl_ProcedureStaff.StaffID
+ LEFT JOIN tbl_pathology ON tbl_pathology.OperationID = tbl_operation.OperationID
  LEFT JOIN ref_Procedure ON tbl_Operation.Op_Description = ref_Procedure.ProcedureID
  LEFT JOIN tbl_CPB ON tbl_CPB.OperationID = tbl_Operation.OperationID
  LEFT JOIN tbl_30dFollowUp ON tbl_Operation.AdmissionID = tbl_30dFollowUp.AdmissionID
+ LEFT JOIN tbl_prevcardproc ON tbl_Operation.OperationID = tbl_prevcardproc.OperationID
  LEFT JOIN domains AS IABP_W ON tbl_IntraOpSupport.IABP_When = IABP_W.code AND IABP_W.domain = 'When'
  LEFT JOIN domains AS IABPIndic ON tbl_IntraOpSupport.IABP_Indication = IABPIndic.code AND IABPIndic.domain = 'IABPIndic'
  LEFT JOIN domains AS DeathCause1 ON tbl_30dFollowUp.FU_DeathCause1 = DeathCause1.code AND DeathCause1.domain = 'DeathCause'
@@ -159,6 +174,7 @@ FROM
  LEFT JOIN domains AS DeathLocation ON tbl_30dFollowUp.FU_DeathLocation = DeathLocation.code AND DeathLocation.domain = 'DeathLocation'
  LEFT JOIN domains AS TFHospital ON tbl_Admission.Adm_TransfHosp = TFHospital.code AND TFHospital.domain = 'TFHospital'
  LEFT JOIN domains AS AdmHospital ON tbl_Admission.Adm_Hospital = AdmHospital.code AND AdmHospital.domain = 'Hospital'
+ LEFT JOIN domains AS Sex ON tbl_patient.Pt_Gender = Sex.code AND Sex.domain = 'Gender'
 
 -- WHERE cts_db.tbl_Operation.OpDate BETWEEN CAST({MinDate} AS DATE) AND CAST({MaxDate} AS DATE);
 WHERE cts_db.tbl_Operation.OpDate BETWEEN CAST('2019-05-01' AS DATE) AND CAST('2019-05-31' AS DATE);

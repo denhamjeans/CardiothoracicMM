@@ -48,6 +48,12 @@ library(plotly)
 library(DBI)
 library(odbc)
 library(glue)
+library(modules)
+
+Cockcroft_Gault <- modules::use('EuroScore.R')[['Cockcroft_Gault']]
+EuroScoreAdd.I <- modules::use('EuroScore.R')[['EuroScoreAdd.I']]
+EuroScoreLog.I <- modules::use('EuroScore.R')[['EuroScoreLog.I']]
+EuroScoreLog.II <- modules::use('EuroScore.R')[['EuroScoreLog.II']]
 ```
 
 ```{r}
@@ -152,6 +158,15 @@ if(DatabaseConnection == TRUE){
                                           .con = con
                                           ))
   dbDisconnect(con)
+  
+  ####DataCleaning/Formatting for R
+  MM.Pres_Main$Adm_Hospital <- as.factor(MM.Pres_Main$Adm_Hospital)
+  MM.Pres_Main$AdmDate <- as.Date(MM.Pres_Main$AdmDate, format = "%d/%m/%Y")
+  MM.Pres_Main$ConsultDate <- as.Date(MM.Pres_Main$ConsultDate, format = "%d/%m/%Y")
+  MM.Pres_Main$OpDate <- as.Date(MM.Pres_Main$OpDate, format = "%d/%m/%Y")
+  MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, format = "%d/%m/%Y")
+  
+  
 }else{
 
   #### FOR LOCAL CSV Files
@@ -166,94 +181,95 @@ if(DatabaseConnection == TRUE){
   MM.Pres_Main <- read_csv(file = paste(Pathfile, "qry_MMPres_Main.csv", sep = ""))
   MM.ReAdm <-     read_csv(file = paste(Pathfile, "qry_MMPres_ReAdm.csv", sep = ""))
   MM.RTT <-       read_csv(file = paste(Pathfile, "qry_MMPres_RTT.csv", sep = ""))
+
+
+
+  #Data cleaning and wrangling ------------------
+  
+  ####Fix Variable formats####
+  
+  #dates/times
+  
+  #Admission DATE/TIME ***************************
+  MM.Pres_Main$AdmDate <- as.Date(MM.Pres_Main$AdmDate, format = "%d/%m/%Y")
+  
+  #Consult DATE/TIME *************************
+  MM.Pres_Main$ConsultDate <- as.Date(MM.Pres_Main$ConsultDate, format = "%d/%m/%Y")
+  
+  # MM.Pres_Main %<>% mutate(ConsultDate = if_else(is.na(ConsultDate), AdmDate, ConsultDate))
+  
+  #Operation DATE/TIME ************************
+  MM.Pres_Main$OpDate <- as.Date(MM.Pres_Main$OpDate, format = "%d/%m/%Y")
+  
+  #Discharge DATE/TIME ************************
+  MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, format = "%d/%m/%Y")
+  
+  #ICU admission DATE/TIME **********************
+  MM.Pres_Main$PO_ICUAdmDt <- as.Date(MM.Pres_Main$PO_ICUAdmDt, format = "%d/%m/%Y")
+  MM.Pres_Main$PO_ICUAdmTm <- as.POSIXct(MM.Pres_Main$PO_ICUAdmTm, format = "%d/%m/%Y %H:%M:%S") %>%
+     strftime(format="%H:%M:%S")
+  MM.Pres_Main$PO_ICUAdmDt <- as.POSIXct(paste(MM.Pres_Main$PO_ICUAdmDt, MM.Pres_Main$PO_ICUAdmTm), format="%Y-%m-%d %H:%M:%S")
+  
+  
+  
+  
+  #IABP In DATE/TIME
+  MM.Pres_Main$IABP_InDt <- as.Date(MM.Pres_Main$IABP_InDt, format = "%d/%m/%Y")
+  MM.Pres_Main$IABP_InTm <- as.POSIXct(MM.Pres_Main$IABP_InTm, format = "%d/%m/%Y %H:%M:%S") %>%
+     strftime(format="%H:%M:%S")
+  MM.Pres_Main$IABP_InDt <- as.POSIXct(paste(MM.Pres_Main$IABP_InDt, MM.Pres_Main$IABP_InTm), format="%Y-%m-%d %H:%M:%S")
+  
+  #IABP Out DATE/TIME
+  MM.Pres_Main$IABP_OutDt <- as.Date(MM.Pres_Main$IABP_OutDt, format = "%d/%m/%Y")
+  MM.Pres_Main$IABP_OutTm <- as.POSIXct(MM.Pres_Main$IABP_OutTm, format = "%d/%m/%Y %H:%M:%S") %>%
+     strftime(format="%H:%M:%S")
+  MM.Pres_Main$IABP_OutDt <- as.POSIXct(paste(MM.Pres_Main$IABP_OutDt, MM.Pres_Main$IABP_OutTm), format="%Y-%m-%d %H:%M:%S")
+  
+  #IDC Out DATE/TIME
+  MM.Pres_Main$PO_IDCOutDate <- as.Date(MM.Pres_Main$PO_IDCOutDate, format = "%d/%m/%Y")
+  MM.Pres_Main$PO_IDC_OutTime <- as.POSIXct(MM.Pres_Main$PO_IDC_OutTime, format = "%d/%m/%Y %H:%M:%S") %>%
+     strftime(format="%H:%M:%S")
+  MM.Pres_Main$PO_IDCOutDate <- as.POSIXct(paste(MM.Pres_Main$PO_IDCOutDate, MM.Pres_Main$PO_IDC_OutTime), format="%Y-%m-%d %H:%M:%S")
+  
+  
+  
+  
+  #Intubation DATE/TIME
+  MM.Pres_Main$IntubationDt <- as.Date(MM.Pres_Main$IntubationDt, format = "%d/%m/%Y")
+  MM.Pres_Main$IntubationTm <- as.POSIXct(MM.Pres_Main$IntubationTm, format = "%d/%m/%Y %H:%M:%S") %>%
+     strftime(format="%H:%M:%S")
+  MM.Pres_Main$IntubationDt <- as.POSIXct(paste(MM.Pres_Main$IntubationDt, MM.Pres_Main$IntubationTm), format="%Y-%m-%d %H:%M:%S")
+  
+  #Extubation DATE/TIME
+  MM.Pres_Main$PO_ExtbDt <- as.Date(MM.Pres_Main$PO_ExtbDt, format = "%d/%m/%Y")
+  MM.Pres_Main$PO_ExtbTm <- as.POSIXct(MM.Pres_Main$PO_ExtbTm, format = "%d/%m/%Y %H:%M:%S") %>%
+     strftime(format="%H:%M:%S")
+  MM.Pres_Main$PO_ExtbDt <- as.POSIXct(paste(MM.Pres_Main$PO_ExtbDt, MM.Pres_Main$PO_ExtbTm), format="%Y-%m-%d %H:%M:%S")
+  
+  #ReIntubation DATE/TIME
+  MM.Pres_Main$PO_ReIntbDt <- as.Date(MM.Pres_Main$PO_ReIntbDt, format = "%d/%m/%Y")
+  MM.Pres_Main$PO_ReIntbTm <- as.POSIXct(MM.Pres_Main$PO_ReIntbTm, format = "%d/%m/%Y %H:%M:%S") %>%
+     strftime(format="%H:%M:%S")
+  MM.Pres_Main$PO_ReIntbDt <- as.POSIXct(paste(MM.Pres_Main$PO_ReIntbDt, MM.Pres_Main$PO_ReIntbTm), format="%Y-%m-%d %H:%M:%S")
+  
+  #ReExtubation DATE/TIME
+  MM.Pres_Main$PO_ReExtbDt <- as.Date(MM.Pres_Main$PO_ReExtbDt, format = "%d/%m/%Y")
+  MM.Pres_Main$PO_ReExtbTm <- as.POSIXct(MM.Pres_Main$PO_ReExtbTm, format = "%d/%m/%Y %H:%M:%S") %>%
+     strftime(format="%H:%M:%S")
+  MM.Pres_Main$PO_ReExtbDt <- as.POSIXct(paste(MM.Pres_Main$PO_ReExtbDt, MM.Pres_Main$PO_ReExtbTm), format="%Y-%m-%d %H:%M:%S")
+  
+  #Ready for ward DATE/TIME
+  MM.Pres_Main$PO_RFWDt <- as.Date(MM.Pres_Main$PO_RFWDt, format = "%d/%m/%Y")
+  MM.Pres_Main$PO_RFWTm <- as.POSIXct(MM.Pres_Main$PO_RFWTm, format = "%d/%m/%Y %H:%M:%S") %>%
+     strftime(format="%H:%M:%S")
+  MM.Pres_Main$PO_RFWDt <- as.POSIXct(paste(MM.Pres_Main$PO_RFWDt, MM.Pres_Main$PO_RFWTm), format="%Y-%m-%d %H:%M:%S")
+  
+  #ICU discharge DATE/TIME
+  MM.Pres_Main$PO_ICUOutDt <- as.Date(MM.Pres_Main$PO_ICUOutDt, format = "%d/%m/%Y")
+  MM.Pres_Main$PO_ICUOutTm <- as.POSIXct(MM.Pres_Main$PO_ICUOutTm, format = "%d/%m/%Y %H:%M:%S") %>%
+     strftime(format="%H:%M:%S")
+  MM.Pres_Main$PO_ICUOutDt <- as.POSIXct(paste(MM.Pres_Main$PO_ICUOutDt, MM.Pres_Main$PO_ICUOutTm), format="%Y-%m-%d %H:%M:%S")
 }
-
-
-#Data cleaning and wrangling ------------------
-
-####Fix Variable formats####
-
-#dates/times
-
-#Admission DATE/TIME ***************************
-MM.Pres_Main$AdmDate <- as.Date(MM.Pres_Main$AdmDate, format = "%d/%m/%Y")
-
-#Consult DATE/TIME *************************
-MM.Pres_Main$ConsultDate <- as.Date(MM.Pres_Main$ConsultDate, format = "%d/%m/%Y")
-
-# MM.Pres_Main %<>% mutate(ConsultDate = if_else(is.na(ConsultDate), AdmDate, ConsultDate))
-
-#Operation DATE/TIME ************************
-MM.Pres_Main$OpDate <- as.Date(MM.Pres_Main$OpDate, format = "%d/%m/%Y")
-
-#Discharge DATE/TIME ************************
-MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, format = "%d/%m/%Y")
-
-#ICU admission DATE/TIME **********************
-MM.Pres_Main$PO_ICUAdmDt <- as.Date(MM.Pres_Main$PO_ICUAdmDt, format = "%d/%m/%Y")
-MM.Pres_Main$PO_ICUAdmTm <- as.POSIXct(MM.Pres_Main$PO_ICUAdmTm, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$PO_ICUAdmDt <- as.POSIXct(paste(MM.Pres_Main$PO_ICUAdmDt, MM.Pres_Main$PO_ICUAdmTm), format="%Y-%m-%d %H:%M:%S")
-
-
-
-
-#IABP In DATE/TIME
-MM.Pres_Main$IABP_InDt <- as.Date(MM.Pres_Main$IABP_InDt, format = "%d/%m/%Y")
-MM.Pres_Main$IABP_InTm <- as.POSIXct(MM.Pres_Main$IABP_InTm, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$IABP_InDt <- as.POSIXct(paste(MM.Pres_Main$IABP_InDt, MM.Pres_Main$IABP_InTm), format="%Y-%m-%d %H:%M:%S")
-
-#IABP Out DATE/TIME
-MM.Pres_Main$IABP_OutDt <- as.Date(MM.Pres_Main$IABP_OutDt, format = "%d/%m/%Y")
-MM.Pres_Main$IABP_OutTm <- as.POSIXct(MM.Pres_Main$IABP_OutTm, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$IABP_OutDt <- as.POSIXct(paste(MM.Pres_Main$IABP_OutDt, MM.Pres_Main$IABP_OutTm), format="%Y-%m-%d %H:%M:%S")
-
-#IDC Out DATE/TIME
-MM.Pres_Main$PO_IDCOutDate <- as.Date(MM.Pres_Main$PO_IDCOutDate, format = "%d/%m/%Y")
-MM.Pres_Main$PO_IDC_OutTime <- as.POSIXct(MM.Pres_Main$PO_IDC_OutTime, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$PO_IDCOutDate <- as.POSIXct(paste(MM.Pres_Main$PO_IDCOutDate, MM.Pres_Main$PO_IDC_OutTime), format="%Y-%m-%d %H:%M:%S")
-
-
-
-
-#Intubation DATE/TIME
-MM.Pres_Main$IntubationDt <- as.Date(MM.Pres_Main$IntubationDt, format = "%d/%m/%Y")
-MM.Pres_Main$IntubationTm <- as.POSIXct(MM.Pres_Main$IntubationTm, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$IntubationDt <- as.POSIXct(paste(MM.Pres_Main$IntubationDt, MM.Pres_Main$IntubationTm), format="%Y-%m-%d %H:%M:%S")
-
-#Extubation DATE/TIME
-MM.Pres_Main$PO_ExtbDt <- as.Date(MM.Pres_Main$PO_ExtbDt, format = "%d/%m/%Y")
-MM.Pres_Main$PO_ExtbTm <- as.POSIXct(MM.Pres_Main$PO_ExtbTm, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$PO_ExtbDt <- as.POSIXct(paste(MM.Pres_Main$PO_ExtbDt, MM.Pres_Main$PO_ExtbTm), format="%Y-%m-%d %H:%M:%S")
-
-#ReIntubation DATE/TIME
-MM.Pres_Main$PO_ReIntbDt <- as.Date(MM.Pres_Main$PO_ReIntbDt, format = "%d/%m/%Y")
-MM.Pres_Main$PO_ReIntbTm <- as.POSIXct(MM.Pres_Main$PO_ReIntbTm, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$PO_ReIntbDt <- as.POSIXct(paste(MM.Pres_Main$PO_ReIntbDt, MM.Pres_Main$PO_ReIntbTm), format="%Y-%m-%d %H:%M:%S")
-
-#ReExtubation DATE/TIME
-MM.Pres_Main$PO_ReExtbDt <- as.Date(MM.Pres_Main$PO_ReExtbDt, format = "%d/%m/%Y")
-MM.Pres_Main$PO_ReExtbTm <- as.POSIXct(MM.Pres_Main$PO_ReExtbTm, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$PO_ReExtbDt <- as.POSIXct(paste(MM.Pres_Main$PO_ReExtbDt, MM.Pres_Main$PO_ReExtbTm), format="%Y-%m-%d %H:%M:%S")
-
-#Ready for ward DATE/TIME
-MM.Pres_Main$PO_RFWDt <- as.Date(MM.Pres_Main$PO_RFWDt, format = "%d/%m/%Y")
-MM.Pres_Main$PO_RFWTm <- as.POSIXct(MM.Pres_Main$PO_RFWTm, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$PO_RFWDt <- as.POSIXct(paste(MM.Pres_Main$PO_RFWDt, MM.Pres_Main$PO_RFWTm), format="%Y-%m-%d %H:%M:%S")
-
-#ICU discharge DATE/TIME
-MM.Pres_Main$PO_ICUOutDt <- as.Date(MM.Pres_Main$PO_ICUOutDt, format = "%d/%m/%Y")
-MM.Pres_Main$PO_ICUOutTm <- as.POSIXct(MM.Pres_Main$PO_ICUOutTm, format = "%d/%m/%Y %H:%M:%S") %>%
-   strftime(format="%H:%M:%S")
-MM.Pres_Main$PO_ICUOutDt <- as.POSIXct(paste(MM.Pres_Main$PO_ICUOutDt, MM.Pres_Main$PO_ICUOutTm), format="%Y-%m-%d %H:%M:%S")
 
 
 MM.Pres_Main$PreOp_Comments <- as.character(MM.Pres_Main$PreOp_Comments)
