@@ -360,7 +360,7 @@ EuroScoreLog.II  <- function(x,...) {
   for(i in seq(along=x$ph)) { 
     if (x$ph[i]==1) { x$log.ph[i] <- 0 } else {
       if (x$ph[i]==2) {x$log.ph[i] <- 0.1788899 } else { x$log.ri[i] <- 0.3491475}
-    }} 
+    }}
   #  Urgency   now four classes:
   # elective : routine admission for operation. code is 1
   # urgent: patients who have not been electively admitted for operation but who require intervention or surgery on the current admission for medical reasons. These patients cannot be sent home without a definitive procedure. code is 2
@@ -383,6 +383,7 @@ EuroScoreLog.II  <- function(x,...) {
       if (x$woi[i]==2) { x$log.woi[i] <- 0.0062118 } else { 
         if (x$woi[i]==3) { x$log.woi[i] <- 0.5521478 } else {x$log.woi[i] <- 0.9724533}
       }}}
+  
   # Surgery on thoracic aorta
   x$log.sta <- NULL
   for (i in seq(along=x$sta)) {

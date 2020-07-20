@@ -166,6 +166,17 @@ if(DatabaseConnection == TRUE){
   MM.Pres_Main$OpDate <- as.Date(MM.Pres_Main$OpDate, format = "%d/%m/%Y")
   MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, format = "%d/%m/%Y")
   
+  #create Renal EuroScore variable
+  MM.Pres_Main %<>% 
+    dplyr::mutate(EuroScore_ri = dplyr::if_else(EuroScore_ri_dialysis==1, 4,
+                                 dplyr::if_else(EuroScore_ri_creatinine_clearance<50 & EuroScore_ri_dialysis==0, 3,
+                                 dplyr::if_else(EuroScore_ri_creatinine_clearance>=50 & EuroScore_ri_creatinine_clearance<=85 & EuroScore_ri_dialysis==0, 2, 
+                                 dplyr::if_else(EuroScore_ri_creatinine_clearance>85 & EuroScore_ri_dialysis==0, 1, 0)))))
+  
+  
+  MM.Pres_Main %<>% dplyr::mutate(EuroScore_II = EuroScoreLog.II(MM.Pres_Main[c('EuroScore_age', 'EuroScore_sex', 'EuroScore_nyha', 'EuroScore_ri', 'EuroScore_eca', 'EuroScore_pm', 'EuroScore_pcs', 'EuroScore_cld', 'EuroScore_ae', 'EuroScore_cps', 'EuroScore_doi', 'EuroScore_nyha', 'EuroScore_ccs', 'EuroScore_lv_ef', 'EuroScore_rmi', 'EuroScore_ph', 'EuroScore_em', 'EuroScore_woi', 'EuroScore_sta'),]))
+  
+  ###need names to match the function names (maybe change the function)
   
 }else{
 
@@ -308,6 +319,7 @@ MM.Pres_Main <- MM.Pres_Main[ , !(names(MM.Pres_Main) %in% drops)]
 MM.Pres_Main %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE))
 MM.Inf %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE)) 
 
+#
 MM.Pres_Main %<>% mutate(`PO_VENT_length_TEST` = PO_ExtbDt-PO_ICUAdmDt)
 # MM.Pres_Main %<>% mutate(`PO_Vent>24hr` = if_else(`POST_OP_VENT_DURATION`>=24, 1, 0))
 

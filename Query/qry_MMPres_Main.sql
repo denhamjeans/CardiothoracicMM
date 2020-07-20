@@ -1,4 +1,3 @@
-USE cts_db;
 SELECT 
  tbl_Patient.PatientID,
  tbl_Admission.AdmissionID,
@@ -10,8 +9,8 @@ SELECT
  tbl_Patient.Pt_MRN_Pub,
  timestampdiff(YEAR, tbl_Patient.Pt_DOB, tbl_Operation.OpDate) AS EuroScore_age,
  IF(Sex.label='Female', 1, 0) AS EuroScore_sex,
- tbl_preopstatus.PreOp_NYHA AS EuroScore_nyha,
  tbl_preopstatus.PreOp_Dialysis AS EuroScore_ri_dialysis,
+ tbl_preopstatus.PreOp_RenalImpair AS EuroScore_ri_impairment,
  CASE WHEN Sex.label = 'Female' THEN 
   ROUND((140-(timestampdiff(YEAR, tbl_Patient.Pt_DOB, tbl_Operation.OpDate)))*tbl_Operation.Weight*0.85/(tbl_pathology.Path_PreOpCreat*1000*0.0113*72),2)
  WHEN Sex.label = 'Male' THEN
@@ -20,8 +19,37 @@ SELECT
  tbl_preopstatus.PreOp_PVD AS EuroScore_eca,
  NULL AS EuroScore_pm,
  tbl_prevcardproc.Prev_CardiacSurgery AS EuroScore_pcs,
- AS EuroScore_cld,
- tbl_
+ PreOp_RespDisease AS EuroScore_cld,
+ PreOp_IEActive AS EuroScore_ae,
+ IF(PreOp_ArrhyVentType = 2 OR PreOp_ArrhyVentType = 1 OR PreOp_Resus = 1 OR PreOp_CardiogenicShock = 1 OR IABP_When = 1 OR PreOp_RenalImpair = 1 OR PreOp_Dialysis = 1, 1, 0) AS EuroScore_cps,
+ IF(PreOp_DiabControl = 4, 1, 0) AS EuroScore_doi,
+ PreOp_NYHA as EuroScore_nyha,
+ IF(PreOp_CCS = 4, 1, 0) AS EuroScore_ccs,
+ CASE WHEN Diag_HaemoEF IS NOT NULL THEN Diag_HaemoEF
+	WHEN Diag_HaemoLevel = 1 THEN 65
+	WHEN Diag_HaemoLevel = 2 THEN 55
+	WHEN Diag_HaemoLevel = 3 THEN 35
+	WHEN Diag_HaemoLevel = 4 THEN 25
+	ELSE NULL END AS EuroScore_lv_ef,
+ PreOp_MI AS EuroScore_rmi,
+ PreOp_PulmHTN AS EuroScore_ph,
+ tbl_Operation.Op_StatusPOW AS EuroScore_em,
+ CASE WHEN ref_procedure.CABG = 1 AND ref_procedure.IsoProcedure = 1 THEN 1
+	WHEN ref_procedure.CABG = 0 AND ref_procedure.IsoProcedure = 1 THEN 2
+    WHEN ROUND (   
+        ((
+            LENGTH(ref_procedure.OpDescription)
+            - LENGTH( REPLACE ( ref_procedure.OpDescription, "/", "") ) 
+        ) / LENGTH("/")) + 1        
+    ) = 2 THEN 3
+    WHEN ROUND (   
+        ((
+            LENGTH(ref_procedure.OpDescription)
+            - LENGTH( REPLACE ( ref_procedure.OpDescription, "/", "") ) 
+        ) / LENGTH("/")) + 1        
+    ) > 2 THEN 4
+    ELSE NULL END AS EuroScore_woi,
+ ref_Procedure.Aorta AS EuroScore_sta,
  tbl_operation.OpDate,
  ref_Procedure.OpDescription,
  ref_Procedure.OpCategory,
@@ -164,6 +192,7 @@ FROM
  LEFT JOIN tbl_pathology ON tbl_pathology.OperationID = tbl_operation.OperationID
  LEFT JOIN ref_Procedure ON tbl_Operation.Op_Description = ref_Procedure.ProcedureID
  LEFT JOIN tbl_CPB ON tbl_CPB.OperationID = tbl_Operation.OperationID
+ LEFT JOIN tbl_diagnostics ON tbl_diagnostics.OperationID = tbl_Operation.OperationID
  LEFT JOIN tbl_30dFollowUp ON tbl_Operation.AdmissionID = tbl_30dFollowUp.AdmissionID
  LEFT JOIN tbl_prevcardproc ON tbl_Operation.OperationID = tbl_prevcardproc.OperationID
  LEFT JOIN domains AS IABP_W ON tbl_IntraOpSupport.IABP_When = IABP_W.code AND IABP_W.domain = 'When'
@@ -176,5 +205,4 @@ FROM
  LEFT JOIN domains AS AdmHospital ON tbl_Admission.Adm_Hospital = AdmHospital.code AND AdmHospital.domain = 'Hospital'
  LEFT JOIN domains AS Sex ON tbl_patient.Pt_Gender = Sex.code AND Sex.domain = 'Gender'
 
--- WHERE cts_db.tbl_Operation.OpDate BETWEEN CAST({MinDate} AS DATE) AND CAST({MaxDate} AS DATE);
-WHERE cts_db.tbl_Operation.OpDate BETWEEN CAST('2019-05-01' AS DATE) AND CAST('2019-05-31' AS DATE);
+WHERE cts_db.tbl_Operation.OpDate BETWEEN CAST({MinDate} AS DATE) AND CAST({MaxDate} AS DATE);
