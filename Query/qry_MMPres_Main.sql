@@ -18,9 +18,9 @@ SELECT
  ELSE NULL END AS EuroScore_ri_creatinine_clearance,
  tbl_preopstatus.PreOp_PVD AS EuroScore_eca,
  NULL AS EuroScore_pm,
- tbl_prevcardproc.Prev_CardiacSurgery AS EuroScore_pcs,
+ if(Prev_CardiacProcedure = 0, 0, Prev_CardiacSurgery) AS EuroScore_pcs,
  PreOp_RespDisease AS EuroScore_cld,
- PreOp_IEActive AS EuroScore_ae,
+ IF(PreOp_IE = 0, 0, PreOp_IEActive) AS EuroScore_ae,
  IF(PreOp_ArrhyVentType = 2 OR PreOp_ArrhyVentType = 1 OR PreOp_Resus = 1 OR PreOp_CardiogenicShock = 1 OR IABP_When = 1 OR PreOp_RenalImpair = 1 OR PreOp_Dialysis = 1, 1, 0) AS EuroScore_cps,
  IF(PreOp_DiabControl = 4, 1, 0) AS EuroScore_doi,
  PreOp_NYHA as EuroScore_nyha,
@@ -71,9 +71,15 @@ SELECT
  tbl_Admission.AdmDate,
  tbl_Admission.ConsultDate,
  tbl_Admission.DischargeDate,
- tbl_CPB.CPB_StartTime,
- tbl_CPB.CPB_EndTime,
- (CPB_EndTime-CPB_StartTime) AS CPB_PerfTime,
+  CAST(CONCAT(
+			 DATE_FORMAT(tbl_operation.OpDate, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_CPB.CPB_StartTime, "%H:%i:%s")
+			 ) AS DATETIME) AS `CPB_StartTime`,
+  CAST(CONCAT(
+			 DATE_FORMAT(tbl_operation.OpDate, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_CPB.CPB_EndTime, "%H:%i:%s")
+			 ) AS DATETIME) AS `CPB_EndTime`,
+ TIMEDIFF(CPB_EndTime, CPB_StartTime) AS `CPB_PerfTime`,
  tbl_Admission.Adm_Comments,
  tbl_PreOpStatus.PreOp_Comments,
  tbl_IntraOpSupport.IABP,
@@ -116,23 +122,37 @@ SELECT
 							   DATE_FORMAT(tbl_postopstatus.PO_ICUAdmTm, "%H:%i:%s")
 							   ) AS DATETIME)) > '24:00:00',
 			  1, 0) AS `PO_Vent>24hr`,
- tbl_PostOpStatus.IABP_InDt,
- tbl_PostOpStatus.IABP_InTm,
- tbl_PostOpStatus.IABP_OutDt,
- tbl_PostOpStatus.IABP_OutTm,
+ CAST(CONCAT(
+			 DATE_FORMAT(tbl_PostOpStatus.IABP_InDt, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_PostOpStatus.IABP_InTm, "%H:%i:%s")
+			 ) AS DATETIME) AS `IABP_InDt`,
+ CAST(CONCAT(
+			 DATE_FORMAT(tbl_PostOpStatus.IABP_OutDt, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_PostOpStatus.IABP_OutTm, "%H:%i:%s")
+			 ) AS DATETIME) AS `IABP_OutDt`,
  tbl_PostOpStatus.PO_Drain4Hr,
  tbl_PostOpStatus.PO_Drain6Hr,
  tbl_PostOpStatus.PO_Drain24Hr,
- tbl_PostOpStatus.PO_ReIntbDt,
- tbl_PostOpStatus.PO_ReIntbTm,
- tbl_PostOpStatus.PO_ReExtbDt,
- tbl_PostOpStatus.PO_ReExtbTm,
- tbl_PostOpStatus.PO_IDCOutDate,
- tbl_PostOpStatus.PO_IDC_OutTime,
- tbl_PostOpStatus.PO_RFWDt,
- tbl_PostOpStatus.PO_RFWTm,
- tbl_PostOpStatus.PO_ICUOutDt,
- tbl_PostOpStatus.PO_ICUOutTm,
+ CAST(CONCAT(
+			 DATE_FORMAT(tbl_PostOpStatus.PO_ReIntbDt, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_PostOpStatus.PO_ReIntbTm, "%H:%i:%s")
+			 ) AS DATETIME) AS `PO_ReIntbDt`,
+ CAST(CONCAT(
+			 DATE_FORMAT(tbl_PostOpStatus.PO_ReExtbDt, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_PostOpStatus.PO_ReExtbTm, "%H:%i:%s")
+			 ) AS DATETIME) AS `PO_ReExtbDt`,
+ CAST(CONCAT(
+			 DATE_FORMAT(tbl_PostOpStatus.PO_IDCOutDate, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_PostOpStatus.PO_IDC_OutTime, "%H:%i:%s")
+			 ) AS DATETIME) AS `PO_IDCOutDate`,
+ CAST(CONCAT(
+			 DATE_FORMAT(tbl_PostOpStatus.PO_RFWDt, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_PostOpStatus.PO_RFWTm, "%H:%i:%s")
+			 ) AS DATETIME) AS `PO_RFWDt`,
+ CAST(CONCAT(
+			 DATE_FORMAT(tbl_PostOpStatus.PO_ICUOutDt, "%Y-%m-%d"), " ",
+			 DATE_FORMAT(tbl_PostOpStatus.PO_ICUOutTm, "%H:%i:%s")
+			 ) AS DATETIME) AS `PO_ICUOutDt`,
  tbl_PostOpStatus.ICUDays,
  tbl_PostOpStatus.ICUReqDays,
  tbl_PostOpStatus.PO_ReturnICU,

@@ -49,6 +49,7 @@ library(DBI)
 library(odbc)
 library(glue)
 library(modules)
+library(skimr)
 
 Cockcroft_Gault <- modules::use('EuroScore.R')[['Cockcroft_Gault']]
 EuroScoreAdd.I <- modules::use('EuroScore.R')[['EuroScoreAdd.I']]
@@ -126,6 +127,7 @@ getSQL <- function(filepath){
 
 #Database connecion string
 con <- dbConnect(RMariaDB::MariaDB(),
+                 bigint="integer",
                  host = "10.46.238.100",
                  port = 3306,
                  user = "60152297",
@@ -159,31 +161,44 @@ if(DatabaseConnection == TRUE){
                                           ))
   dbDisconnect(con)
   
-  ####DataCleaning/Formatting for R
+MM.Pres_Main[, unlist(lapply(dplyr::select_if(MM.Pres_Main), is.integer64))]
+  
+MM.Pres_Main %<>% type_convert(col_types = cols(
+    TF_Hospital = readr::col_factor()
+  ))
+  
   MM.Pres_Main$Adm_Hospital <- as.factor(MM.Pres_Main$Adm_Hospital)
   MM.Pres_Main$AdmDate <- as.Date(MM.Pres_Main$AdmDate, format = "%d/%m/%Y")
   MM.Pres_Main$ConsultDate <- as.Date(MM.Pres_Main$ConsultDate, format = "%d/%m/%Y")
   MM.Pres_Main$OpDate <- as.Date(MM.Pres_Main$OpDate, format = "%d/%m/%Y")
   MM.Pres_Main$DischargeDate <- as.Date(MM.Pres_Main$DischargeDate, format = "%d/%m/%Y")
+
+
   
-  #create Renal EuroScore variable
-  MM.Pres_Main %<>% 
-    dplyr::mutate(EuroScore_ri = dplyr::if_else(EuroScore_ri_dialysis==1, 4,
-                                 dplyr::if_else(EuroScore_ri_creatinine_clearance<50 & EuroScore_ri_dialysis==0, 3,
-                                 dplyr::if_else(EuroScore_ri_creatinine_clearance>=50 & EuroScore_ri_creatinine_clearance<=85 & EuroScore_ri_dialysis==0, 2, 
-                                 dplyr::if_else(EuroScore_ri_creatinine_clearance>85 & EuroScore_ri_dialysis==0, 1, 0)))))
+#create Renal EuroScore variable 
+#Only works for Database Connection
+MM.Pres_Main %<>% 
+  dplyr::mutate(EuroScore_ri = dplyr::if_else(EuroScore_ri_dialysis==1, 4,
+                               dplyr::if_else(EuroScore_ri_creatinine_clearance<50 & EuroScore_ri_dialysis==0, 3,
+                               dplyr::if_else(EuroScore_ri_creatinine_clearance>=50 & EuroScore_ri_creatinine_clearance<=85 & EuroScore_ri_dialysis==0, 2, 
+                               dplyr::if_else(EuroScore_ri_creatinine_clearance>85 & EuroScore_ri_dialysis==0, 1, 0)))))
   
+Euroscore_vars <- MM.Pres_Main[,c("EuroScore_age", "EuroScore_sex", "EuroScore_ri", "EuroScore_eca", "EuroScore_pm", "EuroScore_pcs", "EuroScore_cld", "EuroScore_ae", "EuroScore_cps", "EuroScore_doi", "EuroScore_nyha", "EuroScore_ccs", "EuroScore_lv_ef", "EuroScore_rmi", "EuroScore_ph", "EuroScore_em", "EuroScore_woi", "EuroScore_sta")]
+
+colnames(Euroscore_vars) <- c("age", "sex", "ri", "eca", "pm", "pcs", "cld", "ae", "cps", "doi", "nyha", "ccs", "lv.ef", "rmi", "ph", "em", "woi", "sta")
+
+##########################################################REMOVE NA=0 WHEN DATABASE IS FUNCTIONING CORRECTLY
+Euroscore_vars[is.na(Euroscore_vars)] = 0
+
+EuroScore_II = EuroScoreLog.II(Euroscore_vars)
   
-  MM.Pres_Main %<>% dplyr::mutate(EuroScore_II = EuroScoreLog.II(MM.Pres_Main[c('EuroScore_age', 'EuroScore_sex', 'EuroScore_nyha', 'EuroScore_ri', 'EuroScore_eca', 'EuroScore_pm', 'EuroScore_pcs', 'EuroScore_cld', 'EuroScore_ae', 'EuroScore_cps', 'EuroScore_doi', 'EuroScore_nyha', 'EuroScore_ccs', 'EuroScore_lv_ef', 'EuroScore_rmi', 'EuroScore_ph', 'EuroScore_em', 'EuroScore_woi', 'EuroScore_sta'),]))
-  
-  ###need names to match the function names (maybe change the function)
   
 }else{
 
   #### FOR LOCAL CSV Files
   #LocalPathFile <- "D:M&M_Query_Data_Laura/Oct_Nov/"
   Pathfile <- "C:\\Users\\Break\\Desktop\\September_MM_data\\"
-    
+  
   #qry_MMPres_Main.csv
   # Copy Of qry_MMPres_Main
   
@@ -319,14 +334,8 @@ MM.Pres_Main <- MM.Pres_Main[ , !(names(MM.Pres_Main) %in% drops)]
 MM.Pres_Main %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE))
 MM.Inf %<>% mutate(Month = month(OpDate, label = TRUE, abbr = FALSE)) 
 
-#
-MM.Pres_Main %<>% mutate(`PO_VENT_length_TEST` = PO_ExtbDt-PO_ICUAdmDt)
-# MM.Pres_Main %<>% mutate(`PO_Vent>24hr` = if_else(`POST_OP_VENT_DURATION`>=24, 1, 0))
-
-
-
-
-
+#Calculate 24 Hour Ventilation as Binary
+test <- MM.Pres_Main %>% mutate(`PO_Vent>24hr` = if_else(`POST_OP_VENT_DURATION`>=24, 1, 0))
 
 ##add the total caseload (per month) to inf table
 monthtotals <- MM.Pres_Main %>%
@@ -349,7 +358,6 @@ if(nrow(MM.Inf) != 0) {
 }
 
 Year <- format(mean(MM.Pres_Main$OpDate), "%Y")
-
 First.Month <- format(min(MM.Pres_Main$OpDate), "%B")
 Second.Month <- format(max(MM.Pres_Main$OpDate), "%B")
 

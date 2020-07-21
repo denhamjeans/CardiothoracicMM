@@ -255,8 +255,8 @@ EuroScoreLog.II  <- function(x,...) {
   x$log.es <- NULL
   # age variable scoring by age groups
   x$log.age <- NULL
-  for(i in seq(along=x$age)) { 
-    if (x$age[i]< 60) { x$log.age[i] <- 0.0285181 } else {x$log.age[i] <- 0.0285181*(x$age[i]-60)}
+  for(i in seq(along=x$age)) {
+    if (x$age[[i]]< 60) { x$log.age[i] <- 0.0285181 } else {x$log.age[i] <- 0.0285181*(x$age[i]-60)}
   }
   #sex variable
   x$log.sex <- NULL
