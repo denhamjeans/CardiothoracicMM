@@ -1,10 +1,10 @@
 # CardiothoracicMM
 
-##Purpose
+## Purpose
 
 This is an R Markdown file intended for the automation of monthly cardiac surgery data review reports as a part of morbidity and mortality (M&M) review at Prince of Wales hospital NSW. All input data is sourced directly from the local Cardiothoracic Surgery database at Prince of Wales.
 
-##Background of M&M Review
+## Background of M&M Review
 
 NSW health policy requires monthly M&M reports be created to review serious complications such as deaths or surgical mismanagement. Ordinarily M&M reports are created as a case-by-case patient review wherein the Advanced Surgical Trainee (AT) outlines each patient's medical history, pre-operative course, surgical proceedure and post-operative course in a narrative structure using Microsoft PowerPoint software and a combination of physical and electronic patient records. The M&M reports are then presented at regularly scheduled department meetings on either a monthly, or bi-monthly basis depending on the availability of key parties such as the surgical consultants.
 
@@ -12,7 +12,7 @@ However, due to the complex nature of cardiac surgery and the need for a data or
 
 This R markdown file is intended to produce the relevant summary statistics in a timely, reliable, and transparent manner.
 
-##Technical Details
+## Technical Details
 
 At the time of creating this project, the decision was made to output the report in the form of a Microsoft PowerPoint file for a few key reasons. The most significant reason is that hospital staff are highly familiar the Microsoft Office Suite and highly favour Microsoft PowerPoint for presentation purposes. However, the Case-by-case patient review portion of the M&M (created by the Advanced Surgical Trainee) needed to be merged to the end of the Data Review section and this was easiest when using PowerPoint. 
 
