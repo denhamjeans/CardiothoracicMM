@@ -20,6 +20,6 @@ Regardless, the decision to use PowerPoint presented some challanges. At the tim
 
 The reference powerpoint file for this project is key for Producing the background graphics within each slide and there are specific reference themes available depending on the requirement for the slide presentation eg. for rendering a single large graph or multiple tables etc. 
 
-The reference themes function by using a series of placeholders for a given theme eg. 1 large placeholder with a defined length and width taking up the majority of the slide, and 1 smaller text placeholder for a title. Using R we can assign our tables formatted using 'dplyr' and graphs formatted using 'ggplot2' to a placeholder, finally compiling everything as a single neat powerpoint output file.
+The reference themes function by using a series of textbox placeholders for a given theme eg. 1 large placeholder with a defined length and width taking up the majority of the slide, and 1 smaller text placeholder for a title. Using R we can assign our tables formatted using 'dplyr' and graphs formatted using 'ggplot2' to the corresponding placeholder element within the powerpoint template file. The R Markdown file will render all the corresponding graphics finally compiling everything as a single neat powerpoint output file.
 
 The creation and formatting of the tables and graphs uses 4 input csv files derived from the local Prince of Wales Cardiothoracic Database. The final Microsoft powerpoint output is a total of 24 sildes.
